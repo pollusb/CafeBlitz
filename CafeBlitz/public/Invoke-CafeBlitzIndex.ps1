@@ -8,7 +8,7 @@
     #2. Some parameters are ignored like @Help or @Debug
     #3. -Verbose option will generate the EXEC string with all parameters
 #>
-function Invoke-CafBlitzIndex {
+function Invoke-CafeBlitzIndex {
     [CmdLetBinding()]
     param (
         $SqlInstance, # You can provide a list
@@ -103,7 +103,6 @@ function Invoke-CafBlitzIndex {
                 $result | ForEach-Object {$_.'Data Compression' = $_.'Data Compression' -replace '^\s+'}
                 $result
             }
-
         }
     }
 }

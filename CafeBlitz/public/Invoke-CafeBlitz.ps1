@@ -8,7 +8,7 @@
     2. Some parameters are ignored like @Help
     3. -Verbose option will generate the EXEC string with all parameters
 #>
-function Invoke-CafBlitz {
+function Invoke-CafeBlitz {
     [CmdLetBinding()]
     param (
         $SqlInstance,
