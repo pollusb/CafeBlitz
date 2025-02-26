@@ -67,19 +67,19 @@ function Invoke-CafeBlitz {
 
         [string]$UsualDBOwner, # SYSNAME = NULL
 
-        [switch]$DoNotSkipBlockingChecks, # Original: SkipBlockingChecks
-
-        #[switch]$Debug1,
-        #$Version     VARCHAR(30) = NULL OUTPUT,
-        #$VersionDate DATETIME = NULL OUTPUT,
-
-        [switch]$VersionCheckMode               # BIT = 0
+        [switch]$DoNotSkipBlockingChecks # Original: SkipBlockingChecks
     )
-    # Building EXEC command using PSBoundParameters
+    $sprocPath = "$PSScriptRoot\..\tsql\sp_Blitz.temp.sql"
 
+    # Building EXEC @parameters using PSBoundParameters
+    $ignore = @()
     $param += foreach ($bp in $PSBoundParameters.GetEnumerator()) {
-        if ($bp.Key -like 'DoNot*') {
-            # Notes #1
+        # SqlInstance + CommonParameters
+        if ($bp.Key -match 'SqlInstance|Verbose|OutVariable|Debug|ErrorAction|WarningAction|InformationAction|ErrorVariable|WarningVariable|InformationVariable|OutBuffer|PipelineVariable') {
+            $ignore += $bp.Key
+        }
+        elseif ($bp.Key -like 'DoNot*') {
+            # See NOTES #1
             "@{0} = 0" -f ($bp.Key -replace '^DoNot')
         }
         elseif ($bp.Value -eq $true) {
@@ -91,29 +91,25 @@ function Invoke-CafeBlitz {
         elseif ($bp.Key -like 'SkipCheck*') {
             "@{0} = '{1}'" -f $bp.Key, $bp.Value
         }
-        elseif ($bp.Key -in 'Verbose','SqlInstance') {
-
-        }
         else {
             "@{0} = '{1}'" -f $bp.Key, $bp.Value
         }
+        Write-Verbose "Ignored param ($($ignore -join ','))"
     }
     $queryExec = "EXEC #sp_Blitz`n" + ($param -join ",`n")
     Write-Verbose $queryExec
-    if ($PSBoundParameters['Verbose']) {
-        return
-    }
+    #if ($PSBoundParameters['Verbose']) { return }
 
     foreach ($sql in $SqlInstance) {
         # Connect NonPooledConnection
         $smo = Connect-DbaInstance -SqlInstance $sql -DisableException -TrustServerCertificate -NonPooledConnection
         if ($smo) {
             # Create temp stored procedure
-            Invoke-DbaQuery -SqlInstance $smo -File "$PSScriptRoot\tsql\sp_Blitz.temp.sql"
+            Invoke-DbaQuery -SqlInstance $smo -File $sprocPath
 
             # Execute temp stored procedure
             $result = switch ($OutputType) {
-                'TABLE' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As PSObjectArray }
+                'TABLE' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As PSObjectArray } # TODO: unsure this works well
                 'COUNT' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As SingleValue }
                 'MARKDOWN' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As SingleValue }
                 'SCHEMA' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As SingleValue }
@@ -121,7 +117,7 @@ function Invoke-CafeBlitz {
                 'NONE' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec }
             }
             [PSCustomObject]@{
-                SqlInstance = $sql
+                SqlInstance = $sql.ToUpper()
                 Date        = Get-Date
                 OutputType  = $OutputType
                 Result      = $result

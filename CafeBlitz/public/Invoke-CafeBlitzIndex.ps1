@@ -52,20 +52,22 @@ function Invoke-CafeBlitzIndex {
         # @VersionDate DATETIME = NULL
         # @VersionCheckMode BIT = 0
     )
+    $sprocPath = "$PSScriptRoot\..\tsql\sp_BlitzIndex.temp.sql"
+
     # Building EXEC command using PSBoundParameters
     Write-Verbose ($PSBoundParameters.GetEnumerator()|Out-String)
+    $ignore = @()
     $param += foreach ($bp in $PSBoundParameters.GetEnumerator()) {
-        if ($bp.Key -match 'Output|Ignore|Name|Sort') {
-            "@{0} = '{1}'" -f $bp.Key, $bp.Value
+        if ($bp.Key -match 'SqlInstance|Verbose|OutVariable|Debug|ErrorAction|WarningAction|InformationAction|ErrorVariable|WarningVariable|InformationVariable|OutBuffer|PipelineVariable') {
+            $ignore += $bp.Key
         }
-        elseif ($bp.Key -in ('Verbose', 'SqlInstance')) {
-            continue
+        elseif ($bp.Key -match 'Output|Ignore|Name|Sort') {
+            "@{0} = '{1}'" -f $bp.Key, $bp.Value
         }
         elseif ($bp.Key -like 'DoNot*') {
             "@{0} = 0" -f ($bp.Key -replace '^DoNot')
         }
         elseif ($bp.Value -eq $true) {
-
             "@{0} = 1" -f $bp.Key
         }
         else {
@@ -74,16 +76,14 @@ function Invoke-CafeBlitzIndex {
     }
     $queryExec = "EXEC #sp_BlitzIndex`n" + ($param -join ",`n")
     Write-Verbose $queryExec
-    if ($PSBoundParameters['Verbose']) {
-        return
-    }
+    #if ($PSBoundParameters['Verbose']) { return }
 
     foreach ($sql in $SqlInstance) {
         # Connect NonPooledConnection
         $smo = Connect-DbaInstance -SqlInstance $sql -DisableException -TrustServerCertificate -NonPooledConnection
         if ($smo) {
             # Create temp stored procedure
-            Invoke-DbaQuery -SqlInstance $smo -File "$PSScriptRoot\tsql\sp_BlitzIndex.temp.sql"
+            Invoke-DbaQuery -SqlInstance $smo -File $sprocPath
 
             # Execute temp stored procedure
             $result = switch ($OutputType) {
