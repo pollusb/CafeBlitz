@@ -1,10 +1,10 @@
 # this code will integrate FRK code into the project
-# should force a new branch ?
+# TODO: should force a new branch ?
 
 # pseudocode
 # foreach script file from our integration
 # if new param then manual validation
-# transform header then save file in public\tsql
+# transform header then save file in CafeBlitz\tsql
 
 
 # sp_blitz
