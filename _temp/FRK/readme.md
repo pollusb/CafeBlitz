@@ -1,8 +1,6 @@
-# CafeBlitz
+# First Responder Kit PowerShell wrapper
 
-A wrapper for the First Responder Kit
-
-This code was build to ease First Responder Kit (FRK) calls. If you don't know anything about it, you should first take a look at [FRK on GitHub](https://github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/releases).
+This code was build to ease FRK (First Responder Kit) calls. If you don't know anything about it, you should first take a look at [First Responder Kit on GitHub](https://github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/releases).
 
 ## 1. No deployement approach
 
@@ -17,6 +15,4 @@ When you run the PowerShell functions from this module, it creates a temporary s
 
 ## 2. Export results
 
-Sometimes, you need someone else to run the script then send you the results. You can consume data manually or via a pipeline to advise your client.
-
-The columns in FRK are oriented towards showing in SSMS. We renamed them to ease object oriented programming (no space or special caracters)
+Sometimes, you need someone else to run the script then send you the results. You can consume data manually or via a pipeline to advise your client. There are many export formats: JSON, XML, CSV or even Excel.
