@@ -6,7 +6,6 @@
 # if new param then manual validation
 # transform header then save file in CafeBlitz\tsql
 
-
 # sp_blitz
 $path = "$PSScriptRoot\frk\sp_blitz.sql"
 $dest = Resolve-Path "$PSScriptRoot\..\public\tsql\sp_Blitz.temp.sql"

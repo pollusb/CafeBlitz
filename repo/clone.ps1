@@ -1,4 +1,6 @@
-# clone the repo, but keep only relevent stuff
+# setp 1 - after a new First Responder Kit revision is made availabe
+# clone repo in frk, but keep only relevent stuff
+# keep the old version in frk.old to be able to compare
 
 Remove-Item $PSScriptRoot\frk.old -Recurse -Force -ErrorAction SilentlyContinue
 Rename-Item $PSScriptRoot\frk frk.old             -ErrorAction SilentlyContinue
