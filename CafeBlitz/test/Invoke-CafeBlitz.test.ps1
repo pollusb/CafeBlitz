@@ -15,7 +15,7 @@ $header = @{ForegroundColor = 'Green'}
 $info = @{ForegroundColor = 'DarkGray'}
 
 Import-Module $PSScriptRoot\..\CafeBlitz.psd1 -Force -Verbose:$false
-Write-Verbose "CafeBlitz.psd1 reloaded"
+Write-Verbose "CafeBlitz module reloaded"
 if ($SkipTest) { Write-Host "Skipping first $SkipTest tests." @info}
 if ($FilterTest) { Write-Host "Filter test. Will run these : $($FilterTest -join ',')" @info}
 
