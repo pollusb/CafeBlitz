@@ -1,10 +1,12 @@
 function ConvertFrom-DataRows {
-    [CmdLetBinding()]
+    # Convert DataRow to PSCustomObject
+    # [CmdLetBinding()]
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
         $InputObject,
 
-        [hashtable]$RenameColumn = @{Pattern = '\s+'; With = '' }, # Remove space and tabs in column name by default
+        # Remove space and tabs in column name by default
+        [hashtable]$RenameColumn = @{Replace = '\s+'; With = '' },
 
         [switch]$TrimValue
     )

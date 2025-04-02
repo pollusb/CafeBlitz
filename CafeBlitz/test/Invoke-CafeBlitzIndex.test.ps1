@@ -3,7 +3,6 @@ param (
     [Parameter(Mandatory)]
     $SqlInstance,
 
-
     [int[]]$FilterTest,
 
     [int]$SkipTest = 0,
@@ -21,22 +20,25 @@ if ($SkipTest) { Write-Host "Skipping first $SkipTest tests." @info}
 if ($FilterTest) { Write-Host "Filter test. Will run these : $($FilterTest -join ',')" @info}
 if (!$SkipTest -and !$FilterTest) {$FilterTest = 1..100}
 
-if (($SkipTest -lt 1 -and $SkipTest -ne 0) -or $FilterTest -contains 1) {
-    Write-Host "01. Testing the simple call with GetAllDatabases" @header
+$id = 1; $name = 'Testing the simple call with GetAllDatabase' -f $id
+if (($SkipTest -lt $id -and $SkipTest -ne 0) -or $FilterTest -contains $id) {
+    Write-Host ('{0:d2} {1}' -f $id, $name) @header
     $obj = Invoke-CafeBlitzIndex -SqlInstance $SqlInstance -Verbose:$Verbose -GetAllDatabases
     Write-Host ('{0} lines in result' -f $obj.Result.Count) @info
 }
 return
-if (($SkipTest -lt 2 -and $SkipTest -ne 0) -or $FilterTest -contains 2) {
-    Write-Host "02. Testing with 2 resultsets?" @header
+$id = 2; $name = 'Testing with 2 resultsets?'
+if (($SkipTest -lt $id -and $SkipTest -ne 0) -or $FilterTest -contains $id) {
+    Write-Host ('{0:d2} {1}' -f $id, $name) @header
     #$obj = Invoke-CafeBlitzIndex -SqlInstance $SqlInstance -Verbose:$Verbose -OutputProcedureCache
     Write-Host ('{0} lines in result' -f $obj.Result.Count) @info
 }
 
-if (($SkipTest -lt 2 -and $SkipTest -ne 0) -or $FilterTest -contains 2) {
-    Write-Host "03. Testing with XML output" @header
+$id = 3; $name = "{0:d2}. Testing with XML output" -f $id
+if (($SkipTest -lt $id -and $SkipTest -ne 0) -or $FilterTest -contains $id) {
+    Write-Host ('{0:d2} {1}' -f $id, $name) @header
     #$obj = Invoke-CafeBlitzIndex -SqlInstance $SqlInstance -Verbose:$Verbose -OutputType XML
     Write-Host ('{0} lines in result' -f $obj.Result.Count) @info
 }
 
-if ($PassThru) { $obj }
+if ($PassThru) { $obj } # does not make sense

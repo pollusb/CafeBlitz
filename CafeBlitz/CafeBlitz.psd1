@@ -1,41 +1,44 @@
 @{
-    RootModule = '.\CafeBlitz.psm1'
-    ModuleVersion = '0.1'
-    GUID = '71cb6577-dda3-41a1-a8ca-38317f0ccbfa'
-    Author = 'Pollus Brodeur'
-    CompanyName = 'ACME'
-    Copyright = '(c) 2025 Pollus Brodeur. Tous droits rÈservÈs.'
-    RequiredModules = @('dbatools')
-    FunctionsToExport = '*'
-    CmdletsToExport = '*'
+    RootModule        = '.\CafeBlitz.psm1'
+    ModuleVersion     = '0.1'
+    GUID              = '71cb6577-dda3-41a1-a8ca-38317f0ccbfa'
+    Author            = 'Pollus Brodeur'
+    CompanyName       = 'ACME'
+    Copyright         = '(c) 2025 Pollus Brodeur. Tous droits rùservùs.'
+    RequiredModules   = @('dbatools')
+    FunctionsToExport = @(
+        'Invoke-CafeBlitz',
+        'Invoke-CafeBlitzIndex'
+    )
+    CmdletsToExport   = '*'
     VariablesToExport = '*'
-    AliasesToExport = '*'
+    AliasesToExport   = '*'
 
-# CompatiblePSEditions = @()
-# Description = ''
-# PowerShellVersion = ''
-# PowerShellHostName = ''
-# PowerShellHostVersion = ''
-# DotNetFrameworkVersion = ''
-# CLRVersion = ''
-# ProcessorArchitecture = ''
-# RequiredAssemblies = @()
-# ScriptsToProcess = @()
-# TypesToProcess = @()
-# FormatsToProcess = @()
-# NestedModules = @()
-# DscResourcesToExport = @()
-# ModuleList = @()
-# FileList = @()
-    PrivateData = @{
-    PSData = @{
-    # Tags = @()
-    # LicenseUri = ''
-    # ProjectUri = ''
-    # IconUri = ''
-    # ReleaseNotes = ''
+    # CompatiblePSEditions = @()
+    # Description = ''
+    # PowerShellVersion = ''
+    # PowerShellHostName = ''
+    # PowerShellHostVersion = ''
+    # DotNetFrameworkVersion = ''
+    # CLRVersion = ''
+    # ProcessorArchitecture = ''
+    # RequiredAssemblies = @()
+    # ScriptsToProcess = @()
+    # TypesToProcess = @()
+    # FormatsToProcess = @()
+    # NestedModules = @()
+    # DscResourcesToExport = @()
+    # ModuleList = @()
+    # FileList = @()
+    PrivateData       = @{
+        PSData = @{
+            # Tags = @()
+            # LicenseUri = ''
+            # ProjectUri = ''
+            # IconUri = ''
+            # ReleaseNotes = ''
+        }
     }
-    }
-# HelpInfoURI = ''
-# DefaultCommandPrefix = ''
+    # HelpInfoURI = ''
+    # DefaultCommandPrefix = ''
 }

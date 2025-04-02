@@ -45,20 +45,20 @@ function Invoke-CafeBlitzIndex {
         [switch]$ShowPartitionRanges, # @ShowPartitionRanges BIT = 0, Will add partition range values column to columnstore visualization
         [string]$SortOrder, # @SortOrder NVARCHAR(50) = NULL, Only affects @Mode = 2.
         [string]$SortDirection, # @SortDirection NVARCHAR(4) = 'DESC', Only affects @Mode = 2.
-        [switch]$DoNotRenameColumns # By default, property names will be renamed to remove space and special characters.
-
         # @Help TINYINT = 0
         # @Debug BIT = 0
         # @Version VARCHAR(30) = NULL
         # @VersionDate DATETIME = NULL
         # @VersionCheckMode BIT = 0
-    )
+
+        [switch]$DoNotRenameColumns # By default, property names will be renamed to remove space and special characters.
+)
     $sprocPath = (Resolve-Path "$PSScriptRoot\..\tsql\sp_BlitzIndex.temp.sql").Path
 
     # Building EXEC command using PSBoundParameters
     $ignore = @()
     $param += foreach ($bp in $PSBoundParameters.GetEnumerator()) {
-        if ($bp.Key -match 'SqlInstance|Verbose|OutVariable|Debug|ErrorAction|WarningAction|InformationAction|ErrorVariable|WarningVariable|InformationVariable|OutBuffer|PipelineVariable') {
+        if ($bp.Key -match 'DoNotRenameColumns|SqlInstance|Verbose|OutVariable|Debug|ErrorAction|WarningAction|InformationAction|ErrorVariable|WarningVariable|InformationVariable|OutBuffer|PipelineVariable') {
             $ignore += $bp.Key
         }
         elseif ($bp.Key -match 'Output|Ignore|Name|Sort') {
@@ -80,24 +80,30 @@ function Invoke-CafeBlitzIndex {
     Write-Verbose "Query used:`n$query"
 
     foreach ($sql in $SqlInstance) {
-        # Connect NonPooledConnection
+        # NonPooledConnection to reuse connection
         $smo = Connect-DbaInstance -SqlInstance $sql -DisableException -TrustServerCertificate -NonPooledConnection
         if ($smo) {
             # Create temp stored procedure
             Invoke-DbaQuery -SqlInstance $smo -File $sprocPath
 
             # Execute temp stored procedure
-            $result = switch ($OutputType) {
-                'TABLE' { Invoke-DbaQuery -SqlInstance $smo -Query $query -As PSObjectArray }
-                'NONE' { Invoke-DbaQuery -SqlInstance $smo -Query $query }
+            switch ($OutputType) {
+                'TABLE' { $dataset = Invoke-DbaQuery -SqlInstance $smo -Query $query -As DataSet }
+                'NONE' { Invoke-DbaQuery -SqlInstance $smo -Query $query -MessagesToOutput | Write-Output; return } # NOTE: is this the right path
             }
 
-            # TODO: Rename columns with bad caracters
+            # Rename property names
+            $result = if ($DoNotRenameColumns) {
+                $dataset | ConvertFrom-DataSet -RenameColumn $null
+            }
+            else {
+                $dataset | ConvertFrom-DataSet -RenameColumn @{Pattern = '\s+|\?|:.*|\(.*'; With = '' }
+            }
             [PSCustomObject]@{
                 SqlInstance = $sql.ToUpper()
                 Date        = Get-Date
                 Version     = Find-BlitzVersion $sprocPath
-                Uptime      = Find-BlitzUptime $result
+                Uptime      = Get-CafeSqlUptime -SqlInstance $sql -Detail
                 OutputType  = $OutputType
                 Result      = $result
             }
