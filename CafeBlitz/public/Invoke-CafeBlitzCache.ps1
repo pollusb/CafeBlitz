@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Wrapper for sp_BlitzIndex
+    Wrapper for sp_BlitzCache
 .DESCRIPTION
 
 .NOTES
@@ -9,7 +9,7 @@
     #3. -Verbose option will generate the EXEC string with all parameters
     #4. Some parameters combinaison can't be used. This logic is implemented in the sproc code and will return a warning
 #>
-function Invoke-CafeBlitzIndex {
+function Invoke-CafeBlitzCache {
     [CmdLetBinding()]
     param (
         $SqlInstance, # You can provide a list
