@@ -1,5 +1,5 @@
 function Find-BlitzVersion {
-    # Extract version from script
+    # Extract version from Blitz source scripts
     param (
         $Path
     )

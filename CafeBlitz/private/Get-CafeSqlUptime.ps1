@@ -1,5 +1,5 @@
 function Get-CafeSqlUptime {
-    # Fast return of SqlServer uptime
+    # Faster return of SqlServer uptime than Get-DbaUptime
     param (
         $SqlInstance,
         $End = (Get-Date),

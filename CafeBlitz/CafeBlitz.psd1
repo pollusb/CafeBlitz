@@ -4,11 +4,12 @@
     GUID              = '71cb6577-dda3-41a1-a8ca-38317f0ccbfa'
     Author            = 'Pollus Brodeur'
     CompanyName       = 'ACME'
-    Copyright         = '(c) 2025 Pollus Brodeur. Tous droits rùservùs.'
+    Copyright         = '(c) 2025 Pollus Brodeur. Tous droits reserves.'
     RequiredModules   = @('dbatools')
     FunctionsToExport = @(
         'Invoke-CafeBlitz',
-        'Invoke-CafeBlitzIndex'
+        'Invoke-CafeBlitzIndex',
+        'Invoke-CafeBlitzCache'
     )
     CmdletsToExport   = '*'
     VariablesToExport = '*'
