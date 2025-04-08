@@ -6,38 +6,109 @@
 # if new param then manual validation
 # transform header then save file in CafeBlitz\tsql
 
-# sp_Blitz
-# $name = 'sp_Blitz'
-# $path = "$PSScriptRoot\frk\$name.sql"
-# $dest = Resolve-Path "$PSScriptRoot\..\public\tsql\$name.temp.sql"
-# if (Test-Path $path) {
-#     $code = Get-Content -Path $path -Raw
-#     $pattern = "(?s)IF OBJECT_ID.*ALTER PROCEDURE \[dbo\]\.\[$name\]"
-#     if ($code -match $pattern) {
-#         $code = $code -replace $pattern, "-- CafeBlitz integration`r`n`r`nCREATE PROCEDURE [dbo].[#$name]"
-#         $code | Set-Content -Path $dest
-#     }
-#     else {
-#         Write-Warning "$name source code was not modified.`ncode --diff '$path' '$dest'"
-#     }
-
-#     $dest
-# }
-
-# sp_BlitzCache
-$name = 'sp_BlitzCache'
+#region sp_Blitz
+$name = 'sp_Blitz'
 $path = "$PSScriptRoot\frk\$name.sql"
-$dest = Resolve-Path "$PSScriptRoot\..\public\tsql\$name.temp.sql"
+$dest = Resolve-Path "$PSScriptRoot\..\CafeBlitz\tsql"
+$temp = "$dest\$name.temp.sql"
+$param = "$dest\$name.param.sql"
 if (Test-Path $path) {
-    $code = Get-Content -Path $path -Raw
-    $pattern = "(?s)CREATE PROCEDURE \[*dbo\]*\.\[*$name\]*"
+    $code = "-- CafeBlitz integration`r`n`r`n$(Get-Content -Path $path -Raw)"
+    $pattern = "(?s)IF OBJECT_ID.*ALTER PROCEDURE \[dbo\]\.\[$name\]"
+    $with = "CREATE PROCEDURE [dbo].[#$name]"
     if ($code -match $pattern) {
-        $code = $code -replace $pattern, "CREATE PROCEDURE [dbo].[#$name]" # ICI
-        $code | Out-File -Path $dest
+        $code -replace $pattern, $with | Out-File -FilePath $temp -Encoding utf8
+        $notes = "code --diff '$path' '$temp'"
+        $status = 'Success'
     }
     else {
-        Write-Warning "$name source code was not modified.`ncode --diff '$path' '$dest'"
+        $status = 'Fail'
     }
-
-    $dest
+    $pattern = '(?s)ALTER PROCEDURE \w+\.\w+\s+(.*)WITH RECOMPILE\s+AS'
+    $code = Get-Content -Path $path -Raw
+    if ($code -match $pattern) {
+        $Matches[1] -split "`r`n" -replace '^\s+' | Out-File -FilePath $param -Encoding utf8
+    }
+    [PSCustomObject]@{
+        Name      = $name
+        Status    = $status
+        PathTemp  = $temp
+        PathParem = $param
+        Notes     = $notes
+    }
 }
+#endregion
+
+#region sp_BlitzCache
+$name = 'sp_BlitzCache'
+$path = "$PSScriptRoot\frk\$name.sql"
+$dest = Resolve-Path "$PSScriptRoot\..\CafeBlitz\tsql"
+$temp = "$dest\$name.temp.sql"
+if (Test-Path $path) {
+    $code = "-- CafeBlitz integration`r`n`r`n$(Get-Content -Path $path -Raw)"
+    $pattern = "(?s)PROCEDURE \[*dbo\]*\.\[*$name\]*"
+    $with = "PROCEDURE [dbo].[#$name]"
+    if ($code -match $pattern) {
+        $code -replace $pattern, $with | Out-File -FilePath $temp -Encoding utf8
+        $notes = "code --diff '$path' '$temp'"
+        $status = 'Success'
+    }
+    else {
+        $status = 'Fail'
+    }
+    [PSCustomObject]@{
+        Name   = $name
+        Status = $status
+        Notes  = $notes
+    }
+    $pattern = '(?s)ALTER PROCEDURE \w+\.\w+\s+(.*)WITH RECOMPILE\s+AS'
+    $code = Get-Content -Path $path -Raw
+    if ($code -match $pattern) {
+        $Matches[1] -split "`r`n" -replace '^\s+' | Out-File -FilePath $param -Encoding utf8
+    }
+    [PSCustomObject]@{
+        Name      = $name
+        Status    = $status
+        PathTemp  = $temp
+        PathParem = $param
+        Notes     = $notes
+    }
+}
+#endregion
+
+#region sp_BlitzIndex
+$name = 'sp_BlitzIndex'
+$path = "$PSScriptRoot\frk\$name.sql"
+$dest = Resolve-Path "$PSScriptRoot\..\CafeBlitz\tsql"
+$temp = "$dest\$name.temp.sql"
+if (Test-Path $path) {
+    $code = "-- CafeBlitz integration`r`n`r`n$(Get-Content -Path $path -Raw)"
+    $pattern = "(?s)PROCEDURE \[*dbo\]*\.\[*$name\]*"
+    $with = "PROCEDURE [dbo].[#$name]"
+    if ($code -match $pattern) {
+        $code -replace $pattern, $with | Out-File -FilePath $temp -Encoding utf8
+        $notes = "code --diff '$path' '$temp'"
+        $status = 'Success'
+    }
+    else {
+        $status = 'Fail'
+    }
+    [PSCustomObject]@{
+        Name   = $name
+        Status = $status
+        Notes  = $notes
+    }
+    $pattern = '(?s)ALTER PROCEDURE \w+\.\w+\s+(.*)WITH RECOMPILE\s+AS'
+    $code = Get-Content -Path $path -Raw
+    if ($code -match $pattern) {
+        $Matches[1] -split "`r`n" -replace '^\s+' | Out-File -FilePath $param -Encoding utf8
+    }
+    [PSCustomObject]@{
+        Name      = $name
+        Status    = $status
+        PathTemp  = $temp
+        PathParem = $param
+        Notes     = $notes
+    }
+}
+#endregion
