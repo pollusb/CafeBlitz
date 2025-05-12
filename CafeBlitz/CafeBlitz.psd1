@@ -6,11 +6,15 @@
     CompanyName       = 'ACME'
     Copyright         = '(c) 2025 Pollus Brodeur. Tous droits reserves.'
     RequiredModules   = @('dbatools')
-    FunctionsToExport = @(
+    FunctionsToExport = '*' <# @('
         'Invoke-CafeBlitz',
         'Invoke-CafeBlitzIndex',
-        'Invoke-CafeBlitzCache'
-    )
+        'Invoke-CafeBlitzCache',
+
+        # Wanted to make these private but they really are practical
+        'ConvertFrom-DataRow',
+        'ConvertFrom-DataSet'
+    )    #>
     CmdletsToExport   = '*'
     VariablesToExport = '*'
     AliasesToExport   = '*'

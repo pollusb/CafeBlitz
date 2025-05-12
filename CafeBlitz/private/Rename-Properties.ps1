@@ -1,6 +1,0 @@
-function Rename-Properties {
-    param (
-
-    )
-
-}

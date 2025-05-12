@@ -4,10 +4,10 @@
 .DESCRIPTION
 
 .NOTES
-    #1. Parameters that are true by default are renamed DoNot*. As an example, @SkipStatistics = 1 by default. To disable, you need to use the switch -DoNotSkipStatistics.
-    #2. Some parameters are ignored like @Help or @Debug
-    #3. -Verbose option will generate the EXEC string with all parameters
-    #4. Some parameters combinaison can't be used. This logic is implemented in the sproc code and will return a warning
+    1. Parameters that are true by default are renamed DoNot*. As an example, @SkipStatistics = 1 by default. To disable, you need to use the switch -DoNotSkipStatistics.
+    2. Some parameters are ignored like @Help or @Debug
+    3. -Verbose option will generate the EXEC string with all parameters
+    4. Some parameters combinaison can't be used. This logic is implemented in the sproc code and will return a warning
 #>
 function Invoke-CafeBlitzIndex {
     [CmdLetBinding()]

@@ -1,5 +1,5 @@
 function ConvertFrom-DataSet {
-    # Needs ConvretFrom-DataRow
+    # Requires ConvretFrom-DataRow
     # Convert DataSet to PSCustomObject
     [CmdLetBinding()]
     param (
