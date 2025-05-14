@@ -90,7 +90,7 @@ function Invoke-CafeBlitzIndex {
             # Execute temp stored procedure
             switch ($OutputType) {
                 'TABLE' { $dataset = Invoke-DbaQuery -SqlInstance $smo -Query $query -As DataSet }
-                'NONE' { Invoke-DbaQuery -SqlInstance $smo -Query $query -MessagesToOutput | Write-Output ; return } # NOTE: is this the right path?
+                'NONE' { Invoke-DbaQuery -SqlInstance $smo -Query $query -MessagesToOutput | Write-Output ; return } # NOTE: this will most probably be removed
             }
 
             # Rename property names
@@ -100,6 +100,9 @@ function Invoke-CafeBlitzIndex {
             else {
                 $dataset | ConvertFrom-DataSet -RenameColumn @{Pattern = '\s+|\?|:.*|\(.*'; With = '' }
             }
+
+            # Remove unuseful lines and columns
+
             [PSCustomObject]@{
                 SqlInstance = $sql.ToUpper()
                 Date        = Get-Date
