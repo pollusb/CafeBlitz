@@ -10,19 +10,18 @@ function Get-Dependencies {
         $SqlInstance,
         $Database
     )
+    $query = "select SCHEMA_NAME(schema_id) from sys.all_objects where name = '$ObjectName';"
+    $schema = Invoke-DbaQuery -SqlInstance $SqlInstance -Database $Database -Query $query -As SingleValue
 
     #region -> Queries
 
     $query1 = @"
-use [StackOverflow]
-go
-exec sp_depends N'usp_SearchPostsByLocation'
-
+exec sp_depends N'$ObjectName'
+GO
 --------------------------------------------------------------------------------------
 -- Code pour faire comme le menu contextuel [View Dependencies]
--- Rechercher usp_SearchPostsByLocation
+-- Rechercher $ObjectName
 --------------------------------------------------------------------------------------
-
 CREATE TABLE #tempdep (objid int NOT NULL, objname sysname NOT NULL, objschema sysname NULL, objdb sysname NOT NULL, objtype smallint NOT NULL)
 go
 
@@ -43,8 +42,8 @@ WHERE
 @_msparam_0=N'P',
 @_msparam_1=N'RF',
 @_msparam_2=N'PC',
-@_msparam_3=N'usp_SearchPostsByLocation',
-@_msparam_4=N'dbo'
+@_msparam_3=N'$ObjectName',
+@_msparam_4=N'$schema'
 go
 COMMIT TRANSACTION
 go
@@ -566,7 +565,7 @@ begin
             EXEC (@query)
             -- @part_func - schema is always null
             -- @schema is null
-            -- consider schema as 'dbo'
+            -- consider schema as '$schema'
             -- @obj
             SET @query = 'update #t2 set object_db = N' + @quote_quoted_dbname + ', object_id = obj.object_id, object_schema = SCHEMA_NAME(obj.schema_id), object_type =
                             case when obj.type = ''U'' then ' + CAST(@u AS nvarchar(8)) +
@@ -583,7 +582,7 @@ begin
                             ' end
                 from ' + @bracket_quoted_dbname + '.sys.objects as obj
                 where obj.name = #t2.object_name collate database_default
-                and SCHEMA_NAME(obj.schema_id) = ''dbo''
+                and SCHEMA_NAME(obj.schema_id) = ''$schema''
                 and #t2.object_type = ' + CAST(@obj AS nvarchar(8)) + ' and #t2.object_schema IS NULL
                 and (#t2.object_db IS NULL or #t2.object_db = N' + @quote_quoted_dbname + ')
                 and #t2.rank = (' + CAST(@iter_no AS nvarchar(8)) + '+1) and #t2.object_id IS NULL and #t2.object_svr IS NULL'
@@ -592,7 +591,7 @@ begin
             SET @query = 'update #t2 set object_db = N' + @quote_quoted_dbname + ', object_id = t.user_type_id, object_schema = SCHEMA_NAME(t.schema_id), object_type = case when t.is_assembly_type = 1 then ' + CAST(@udt AS nvarchar(8)) + ' when t.is_table_type = 1 then ' + CAST(@udtt AS nvarchar(8)) + ' else ' + CAST(@uddt AS nvarchar(8)) + ' end
                 from ' + @bracket_quoted_dbname + '.sys.types as t
                 where t.name = #t2.object_name collate database_default
-                and SCHEMA_NAME(t.schema_id) = ''dbo''
+                and SCHEMA_NAME(t.schema_id) = ''$schema''
                 and #t2.object_type = ' + CAST(@type AS nvarchar(8)) + ' and #t2.object_schema IS NULL
                 and (#t2.object_db IS NULL or #t2.object_db = N' + @quote_quoted_dbname + ')
                 and #t2.rank = (' + CAST(@iter_no AS nvarchar(8)) + '+1) and #t2.object_id IS NULL and #t2.object_svr IS NULL'
@@ -601,7 +600,7 @@ begin
             SET @query = 'update #t2 set object_db = N' + @quote_quoted_dbname + ', object_id = x.xml_collection_id, object_schema = SCHEMA_NAME(x.schema_id)
                 from ' + @bracket_quoted_dbname + '.sys.xml_schema_collections as x
                 where x.name = #t2.object_name collate database_default
-                and SCHEMA_NAME(x.schema_id) = ''dbo''
+                and SCHEMA_NAME(x.schema_id) = ''$schema''
                 and #t2.object_type = ' + CAST(@xml AS nvarchar(8)) + ' and #t2.object_schema IS NULL
                 and (#t2.object_db IS NULL or #t2.object_db = N' + @quote_quoted_dbname + ')
                 and #t2.rank = (' + CAST(@iter_no AS nvarchar(8)) + '+1) and #t2.object_id IS NULL and #t2.object_svr IS NULL'
@@ -674,7 +673,7 @@ begin
             -- update the shared object if any (schema is null)
             update #t2 set object_db = 'master', object_id = o.object_id, object_schema = SCHEMA_NAME(o.schema_id), object_type = @sp
             from master.sys.objects as o
-            where o.name = #t2.object_name collate database_default and SCHEMA_NAME(o.schema_id) = 'dbo' collate database_default  and
+            where o.name = #t2.object_name collate database_default and SCHEMA_NAME(o.schema_id) = '$schema' collate database_default  and
             o.type in ('P', 'RF', 'PC') and
             #t2.object_schema IS null and #t2.object_id IS null and
             #t2.object_name LIKE 'sp/_%' ESCAPE '/' and #t2.object_db IS null and #t2.object_svr IS null
@@ -924,12 +923,10 @@ end
             SET @query = 'update #t1 set #t1.object_name = o.name,#t1.object_schema = sch.name from #t1  inner join '+ quotename(@dbname)+ '.sys.objects as o on #t1.object_id = o.object_id inner join '+ quotename(@dbname)+ '.sys.schemas as sch on sch.schema_id = o.schema_id  where o.name = #t1.object_name collate '+  @collation +' and sch.name = #t1.object_schema collate '+ @collation
             EXEC (@query)
 
-
             FETCH NEXT FROM db_cursor INTO @dbname
         END
         CLOSE db_cursor
         DEALLOCATE db_cursor
-
 
 --final select to return trigger
 select ISNULL(t.object_id, 0) as [object_id], t.object_name, ISNULL(t.object_schema, '') as [object_schema], ISNULL(t.object_db, '') as [object_db], ISNULL(t.object_svr, '') as [object_svr], t.object_type, ISNULL(t.relative_id, 0) as [relative_id], t.relative_name, ISNULL(t.relative_schema, '') as [relative_schema], relative_db, ISNULL(t.relative_svr, '') as [relative_svr], t.relative_type, t.schema_bound, ISNULL(CASE WHEN p.type= 'U' then @u when p.type = 'V' then @v end, 0) as [ptype], ISNULL(p.name, '') as [pname], ISNULL(SCHEMA_NAME(p.schema_id), '') as [pschema]
@@ -946,7 +943,7 @@ IF @must_set_nocount_off > 0
    set nocount off
 "@
     $query2 = @"
-SELECT  DB_NAME() AS dbname,
+SELECT DB_NAME() AS dbname,
  o.type_desc AS referenced_object_type,
  d1.referenced_entity_name,
  d1.referenced_id,
@@ -961,9 +958,9 @@ GROUP BY o.type_desc, d1.referenced_id, d1.referenced_entity_name
 ORDER BY o.type_desc, d1.referenced_entity_name
 "@
     $query3 = @"
-set showplan_xml on
+set showplan_text on
 go
-exec [dbo].[usp_SearchPostsByLocation] @Location = 'Montreal';
+exec [$schema].[$ObjectName];
 "@
     #endregion
 
