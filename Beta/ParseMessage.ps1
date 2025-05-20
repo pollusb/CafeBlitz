@@ -7,10 +7,15 @@ function ParseMessage {
                96           19             1         0
     #>
     param (
-        [Parameter(Mandatory)]
-        [string]$Path
+        #[Parameter(Mandatory)]
+        [string]$Path,
+        $Message
     )
-    $msg = Get-Content -Path $Path -Raw
+    $msg = if ($Path) {
+        Get-Content -Path $Path -Raw
+    } else {
+        $Message
+    }
 
     $elapsed = $msg|Select-String -Pattern 'elapsed time = (\d+) ms' -AllMatches
     foreach ($match in $elapsed.Matches) {
