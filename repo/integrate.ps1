@@ -86,18 +86,21 @@ if (Test-Path $path) {
     $pattern = "(?s)PROCEDURE \[*dbo\]*\.\[*$name\]*"
     $with = "PROCEDURE [dbo].[#$name]"
     if ($code -match $pattern) {
-        $code -replace $pattern, $with | Out-File -FilePath $temp -Encoding utf8
+        $code = $code -replace $pattern, $with
+        $code = $code -replace 'OBJECT_ID(''dbo.sp_BlitzIndex'')','OBJECT_ID(''tempdb.dbo.#sp_BlitzIndex'')'
+        $code | Out-File -FilePath $temp -Encoding utf8
         $notes = "code --diff '$path' '$temp'"
         $status = 'Success'
     }
     else {
         $status = 'Fail'
+        #[PSCustomObject]@{
+        #    Name   = $name
+        #    Status = $status
+        #    Notes  = $notes
+        #}
     }
-    [PSCustomObject]@{
-        Name   = $name
-        Status = $status
-        Notes  = $notes
-    }
+
     $pattern = '(?s)ALTER PROCEDURE \w+\.\w+\s+(.*)WITH RECOMPILE\s+AS'
     $code = Get-Content -Path $path -Raw
     if ($code -match $pattern) {
@@ -107,7 +110,7 @@ if (Test-Path $path) {
         Name      = $name
         Status    = $status
         PathTemp  = $temp
-        PathParem = $param
+        PathParam = $param
         Notes     = $notes
     }
 }

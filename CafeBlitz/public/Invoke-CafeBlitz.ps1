@@ -1,12 +1,13 @@
 <#
 .SYNOPSIS
-    Wrapper for sp_Blitz
+    Wrapper function for sp_Blitz
 .DESCRIPTION
     Will return an object
 .NOTES
     1. Parameters that are true by default are renamed DoNot*. As an example, @CheckUserDatabaseObjects = 1 by default. To override, use the switch -DoNotCheckUserDatabaseObjects.
     2. Some parameters are ignored like @Help which will be now provide by Get-Help
     3. -Verbose switch will generate the EXEC string with all parameters
+    TODO: a parameter to return only 1 table and merge with SqlInstance and columns renamed (they don't need it now)
 #>
 function Invoke-CafeBlitz {
     [CmdLetBinding()]

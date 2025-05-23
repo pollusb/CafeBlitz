@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Wrapper for sp_BlitzCache
+    Wrapper function for sp_BlitzCache
 .DESCRIPTION
 
 .NOTES
@@ -8,6 +8,7 @@
     2. Some parameters are ignored like @Help or @Debug
     3. -Verbose option will generate the EXEC string with all parameters
     4. Some parameters combinaison can't be used. This logic is implemented in the sproc code and will return a warning
+    TODO: a parameter to return only 1 table and merge with SqlInstance and columns renamed (they don't need it now)
 #>
 function Invoke-CafeBlitzCache {
     [CmdLetBinding()]
