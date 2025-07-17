@@ -38,7 +38,7 @@ AS
 	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 	
 
-	SELECT @Version = '8.23', @VersionDate = '20241228';
+	SELECT @Version = '8.24', @VersionDate = '20250407';
 	SET @OutputType = UPPER(@OutputType);
 
     IF(@VersionCheckMode = 1)
@@ -6706,6 +6706,45 @@ IF @ProductVersionMajor >= 10
 
 
 
+				IF NOT EXISTS ( SELECT  1
+								FROM    #SkipChecks
+								WHERE   DatabaseName IS NULL AND CheckID = 268 )
+					BEGIN
+						
+						IF @Debug IN (1, 2) RAISERROR('Running CheckId [%d].', 0, 1, 268) WITH NOWAIT;
+						
+							INSERT  INTO #BlitzResults
+									( CheckID ,
+									  Priority ,
+									  DatabaseName ,
+									  FindingsGroup ,
+									  Finding ,
+									  URL ,
+									  Details
+									)														
+							SELECT 268 AS CheckID,
+							       5 AS Priority,
+								   DB_NAME(ps.database_id),
+							       'Availability' AS FindingsGroup,
+							       'AG Replica Falling Behind' AS Finding,
+							       'https://www.BrentOzar.com/go/ag' AS URL,
+							       ag.name + N' AG replica server ' + 
+										ar.replica_server_name + N' is ' + 
+										CASE WHEN DATEDIFF(SECOND, drs.last_commit_time, ps.last_commit_time) < 200 THEN (CAST(DATEDIFF(SECOND, drs.last_commit_time, ps.last_commit_time) AS NVARCHAR(10)) + N' seconds ')
+										ELSE (CAST(DATEDIFF(MINUTE, drs.last_commit_time, ps.last_commit_time) AS NVARCHAR(10)) + N' minutes ') END
+										+ N' behind the primary.'
+										AS details
+							FROM sys.dm_hadr_database_replica_states AS drs
+							JOIN sys.availability_replicas AS ar ON drs.replica_id = ar.replica_id
+							JOIN sys.availability_groups AS ag ON ar.group_id = ag.group_id
+							JOIN sys.dm_hadr_database_replica_states AS ps 
+								ON drs.group_id = ps.group_id 
+								AND drs.database_id = ps.database_id
+								AND ps.is_local = 1 /* Primary */
+							WHERE drs.is_local = 0 /* Secondary */
+							  AND DATEDIFF(SECOND, drs.last_commit_time, ps.last_commit_time) > 60;
+					END;
+
 
 				IF @CheckUserDatabaseObjects = 1
 					BEGIN
@@ -7749,52 +7788,44 @@ IF @ProductVersionMajor >= 10
 								IF @Debug IN (1, 2) RAISERROR('Running CheckId [%d] through [%d] and [%d] through [%d].', 0, 1, 194, 197, 237, 255) WITH NOWAIT;
 								
 								INSERT INTO #DatabaseScopedConfigurationDefaults (configuration_id, [name], default_value, default_value_for_secondary, CheckID)
-									SELECT 1, 'MAXDOP', '0', NULL, 194
-									UNION ALL
-									SELECT 2, 'LEGACY_CARDINALITY_ESTIMATION', '0', NULL, 195
-									UNION ALL
-									SELECT 3, 'PARAMETER_SNIFFING', '1', NULL, 196
-									UNION ALL
-									SELECT 4, 'QUERY_OPTIMIZER_HOTFIXES', '0', NULL, 197
-									UNION ALL
-									SELECT 6, 'IDENTITY_CACHE', '1', NULL, 237
-									UNION ALL
-									SELECT 7, 'INTERLEAVED_EXECUTION_TVF', '1', NULL, 238
-									UNION ALL
-									SELECT 8, 'BATCH_MODE_MEMORY_GRANT_FEEDBACK', '1', NULL, 239
-									UNION ALL
-									SELECT 9, 'BATCH_MODE_ADAPTIVE_JOINS', '1', NULL, 240
-									UNION ALL
-									SELECT 10, 'TSQL_SCALAR_UDF_INLINING', '1', NULL, 241
-									UNION ALL
-									SELECT 11, 'ELEVATE_ONLINE', 'OFF', NULL, 242
-									UNION ALL
-									SELECT 12, 'ELEVATE_RESUMABLE', 'OFF', NULL, 243
-									UNION ALL
-									SELECT 13, 'OPTIMIZE_FOR_AD_HOC_WORKLOADS', '0', NULL, 244
-									UNION ALL
-									SELECT 14, 'XTP_PROCEDURE_EXECUTION_STATISTICS', '0', NULL, 245
-									UNION ALL
-									SELECT 15, 'XTP_QUERY_EXECUTION_STATISTICS', '0', NULL, 246
-									UNION ALL
-									SELECT 16, 'ROW_MODE_MEMORY_GRANT_FEEDBACK', '1', NULL, 247
-									UNION ALL
-									SELECT 17, 'ISOLATE_SECURITY_POLICY_CARDINALITY', '0', NULL, 248
-									UNION ALL
-									SELECT 18, 'BATCH_MODE_ON_ROWSTORE', '1', NULL, 249
-									UNION ALL
-									SELECT 19, 'DEFERRED_COMPILATION_TV', '1', NULL, 250
-									UNION ALL
-									SELECT 20, 'ACCELERATED_PLAN_FORCING', '1', NULL, 251
-									UNION ALL
-									SELECT 21, 'GLOBAL_TEMPORARY_TABLE_AUTO_DROP', '1', NULL, 252
-									UNION ALL
-									SELECT 22, 'LIGHTWEIGHT_QUERY_PROFILING', '1', NULL, 253
-									UNION ALL
-									SELECT 23, 'VERBOSE_TRUNCATION_WARNINGS', '1', NULL, 254
-									UNION ALL
-									SELECT 24, 'LAST_QUERY_PLAN_STATS', '0', NULL, 255;
-						        EXEC dbo.sp_MSforeachdb 'USE [?]; SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; INSERT INTO #BlitzResults (CheckID, DatabaseName, Priority, FindingsGroup, Finding, URL, Details)
+								VALUES
+									(1, 'MAXDOP', '0', NULL, 194),
+									(2, 'LEGACY_CARDINALITY_ESTIMATION', '0', NULL, 195),
+									(3, 'PARAMETER_SNIFFING', '1', NULL, 196),
+									(4, 'QUERY_OPTIMIZER_HOTFIXES', '0', NULL, 197),
+									(6, 'IDENTITY_CACHE', '1', NULL, 237),
+									(7, 'INTERLEAVED_EXECUTION_TVF', '1', NULL, 238),
+									(8, 'BATCH_MODE_MEMORY_GRANT_FEEDBACK', '1', NULL, 239),
+									(9, 'BATCH_MODE_ADAPTIVE_JOINS', '1', NULL, 240),
+									(10, 'TSQL_SCALAR_UDF_INLINING', '1', NULL, 241),
+									(11, 'ELEVATE_ONLINE', 'OFF', NULL, 242),
+									(12, 'ELEVATE_RESUMABLE', 'OFF', NULL, 243),
+									(13, 'OPTIMIZE_FOR_AD_HOC_WORKLOADS', '0', NULL, 244),
+									(14, 'XTP_PROCEDURE_EXECUTION_STATISTICS', '0', NULL, 245),
+									(15, 'XTP_QUERY_EXECUTION_STATISTICS', '0', NULL, 246),
+									(16, 'ROW_MODE_MEMORY_GRANT_FEEDBACK', '1', NULL, 247),
+									(17, 'ISOLATE_SECURITY_POLICY_CARDINALITY', '0', NULL, 248),
+									(18, 'BATCH_MODE_ON_ROWSTORE', '1', NULL, 249),
+									(19, 'DEFERRED_COMPILATION_TV', '1', NULL, 250),
+									(20, 'ACCELERATED_PLAN_FORCING', '1', NULL, 251),
+									(21, 'GLOBAL_TEMPORARY_TABLE_AUTO_DROP', '1', NULL, 252),
+									(22, 'LIGHTWEIGHT_QUERY_PROFILING', '1', NULL, 253),
+									(23, 'VERBOSE_TRUNCATION_WARNINGS', '1', NULL, 254),
+									(24, 'LAST_QUERY_PLAN_STATS', '0', NULL, 255),
+									(25, 'PAUSED_RESUMABLE_INDEX_ABORT_DURATION_MINUTES', '1440', NULL, 267),
+									(26, 'DW_COMPATIBILITY_LEVEL', '0', NULL, 267),
+									(27, 'EXEC_QUERY_STATS_FOR_SCALAR_FUNCTIONS', '1', NULL, 267),
+									(28, 'PARAMETER_SENSITIVE_PLAN_OPTIMIZATION', '1', NULL, 267),
+									(29, 'ASYNC_STATS_UPDATE_WAIT_AT_LOW_PRIORITY', '0', NULL, 267),
+									(31, 'CE_FEEDBACK', '1', NULL, 267),
+									(33, 'MEMORY_GRANT_FEEDBACK_PERSISTENCE', '1', NULL, 267),
+									(34, 'MEMORY_GRANT_FEEDBACK_PERCENTILE_GRANT', '1', NULL, 267),
+									(35, 'OPTIMIZED_PLAN_FORCING', '1', NULL, 267),
+									(37, 'DOP_FEEDBACK', '0', NULL, 267),
+									(38, 'LEDGER_DIGEST_STORAGE_ENDPOINT', 'OFF', NULL, 267),
+									(39, 'FORCE_SHOWPLAN_RUNTIME_PARAMETER_COLLECTION', '0', NULL, 267);
+
+EXEC dbo.sp_MSforeachdb 'USE [?]; SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED; INSERT INTO #BlitzResults (CheckID, DatabaseName, Priority, FindingsGroup, Finding, URL, Details)
 									SELECT def1.CheckID, DB_NAME(), 210, ''Non-Default Database Scoped Config'', dsc.[name], ''https://www.brentozar.com/go/dbscope'', (''Set value: '' + COALESCE(CAST(dsc.value AS NVARCHAR(100)),''Empty'') + '' Default: '' + COALESCE(CAST(def1.default_value AS NVARCHAR(100)),''Empty'') + '' Set value for secondary: '' + COALESCE(CAST(dsc.value_for_secondary AS NVARCHAR(100)),''Empty'') + '' Default value for secondary: '' + COALESCE(CAST(def1.default_value_for_secondary AS NVARCHAR(100)),''Empty''))
 									FROM [?].sys.database_scoped_configurations dsc
 									INNER JOIN #DatabaseScopedConfigurationDefaults def1 ON dsc.configuration_id = def1.configuration_id
@@ -8566,8 +8597,7 @@ IF @ProductVersionMajor >= 10
 												'Informational' AS FindingsGroup ,
 												'Recommended Trace Flag Off' AS Finding ,
 												'https://www.sqlskills.com/blogs/erin/query-store-trace-flags/' AS URL ,
-												'Trace Flag 7745 not enabled globally. It makes shutdowns/failovers quicker by not waiting for Query Store to flush to disk. It is recommended, but it loses you the non-flushed Query Store data.' AS Details				
-										FROM    #TraceStatus T
+												'Trace Flag 7745 not enabled globally. It makes shutdowns/failovers quicker by not waiting for Query Store to flush to disk. It is recommended, but it loses you the non-flushed Query Store data.' AS Details;
 							END;
 
 						IF NOT EXISTS ( SELECT  1

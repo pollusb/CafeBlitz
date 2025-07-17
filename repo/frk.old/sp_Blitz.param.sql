@@ -1,4 +1,4 @@
-﻿@ObjectName NVARCHAR(386) = NULL, /* 'dbname.schema.table' -- if you are lazy and want to fill in @DatabaseName, @SchemaName and @TableName, and since it's the first parameter can simply do: sp_BlitzIndex 'sch.table' */
+@ObjectName NVARCHAR(386) = NULL, /* 'dbname.schema.table' -- if you are lazy and want to fill in @DatabaseName, @SchemaName and @TableName, and since it's the first parameter can simply do: sp_BlitzIndex 'sch.table' */
 @DatabaseName NVARCHAR(128) = NULL, /*Defaults to current DB if not specified*/
 @SchemaName NVARCHAR(128) = NULL, /*Requires table_name as well.*/
 @TableName NVARCHAR(128) = NULL,  /*Requires schema_name as well.*/
