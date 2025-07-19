@@ -22,7 +22,7 @@ function ConvertFrom-DataRows {
     )
     begin {
         [int]$rows = 0
-        [int]$cols = 0
+        #[int]$cols = 0
         [boolean]$isUsingPipe = -not $PSBoundParameters['InputObject']
         $properties = New-Object System.Collections.Specialized.OrderedDictionary
         $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -35,7 +35,7 @@ function ConvertFrom-DataRows {
                 $rows++
                 $properties.Clear()
                 foreach ($property in $row.psobject.properties) {
-                    $cols++
+                    #$cols++
                     $propName = $property.Name
                     $propValue = $row.$propName
 
@@ -60,12 +60,11 @@ function ConvertFrom-DataRows {
                 $rows++
                 $properties.Clear()
                 foreach ($property in $row.PSAdapted.PSObject.Properties) {
-                    $cols++
+                    #$cols++
                     # get value before changing column name
                     if ($property.Value -is [System.DBNull]) {
                         $value = $null
-                    }
-                    else {
+                    } else {
                         $value = $property.Value
                     }
 
@@ -76,8 +75,7 @@ function ConvertFrom-DataRows {
 
                     if ($TrimValue -and $value -is [string]) {
                         $properties[$propName] = $value.Trim()
-                    }
-                    else {
+                    }  else {
                         $properties[$propName] = $value
                     }
                 }
@@ -90,6 +88,6 @@ function ConvertFrom-DataRows {
     }
     end {
         $timer.Stop()
-        '{0}, {1} rows, {2} prop, {3}, {4}' -f $timer.Elapsed.ToString(), $rows, $cols, $inputType, ("$(if(!$isUsingPipe){'not '})using pipe") | Write-Verbose
+        '{0}, {1} rows, {2} prop, {3}, {4}' -f $timer.Elapsed.ToString(), $rows, -1, $inputType, ("$(if(!$isUsingPipe){'not '})using pipe") | Write-Verbose
     }
 }

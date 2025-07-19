@@ -17,24 +17,24 @@ function ConvertFrom-DataSet {
         # Remove space and ':*' from column name by default
         [hashtable]$RenameColumn = @{Replace = '\s|:.*'; With = ''},
 
+        # Remove trailing spaces in string values in both begin and end
         [switch]$TrimValue
     )
     begin {
         Write-Verbose ($MyInvocation.MyCommand.Name + ' start')
     }
     process {
-        $object = [PSCustomObject]@{}
+        $ds = [PSCustomObject]@{ Tables = @() }
+        [System.Collections.ArrayList]$tables = @()
         $splat = @{
             RenameColumn = $RenameColumn
             TrimValue = $TrimValue
         }
-
         foreach ($tbl in $InputObject.Tables) {
-            #Write-Verbose ('{0} (Rows = {1}, Columns = {2})' -f $tbl.TableName, $tbl.Rows.Count, $tbl.Columns.Count)
             $rows = ConvertFrom-DataRows -InputObject $tbl.Rows @splat
-            $object | Add-Member -Name $tbl.TableName -Value $rows -MemberType NoteProperty
+            $tables.Add($rows) > $null
         }
-        $object
+        $ds.Tables = $tables
     }
     end {
         Write-Verbose ($MyInvocation.MyCommand.Name + ' end')

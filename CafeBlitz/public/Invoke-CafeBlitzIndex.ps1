@@ -5,7 +5,7 @@
 
 .NOTES
     1. Parameters that are true by default are renamed DoNot*. As an example, @SkipStatistics = 1 by default. To disable, you need to use the switch -DoNotSkipStatistics
-    2. Some parameters are ignored like @Help or @Debug
+    2. Some parameters are ignored like @Help, @Version or @Debug
     3. -Verbose option will generate the EXEC string with all parameters
     4. Some parameters combinaison can't be used. This logic is implemented in the sproc code and will return a warning
     TODO: a parameter to return only 1 table and merge with SqlInstance and columns renamed (they don't need it now)
@@ -13,10 +13,13 @@
 function Invoke-CafeBlitzIndex {
     [CmdLetBinding()]
     param (
-        $SqlInstance, # You can provide a list
+        [string[]]$SqlInstance,
 
+        [Alias('Database')]
         [string]$DatabaseName, # NVARCHAR(128) = NULL, Defaults to current DB if not specified
+        [Alias('Schema')]
         [string]$SchemaName, # NVARCHAR(128) = NULL, Requires table_name as well
+        [Alias('Table')]
         [string]$TableName, # NVARCHAR(128) = NULL, Requires schema_name as well
 
         [ValidateRange(0, 4)] # @Mode doesn't matter if you're specifying @SchemaName and @TableName
@@ -56,7 +59,8 @@ function Invoke-CafeBlitzIndex {
         [switch]$DoNotRenameColumns, # By default, property names will be renamed to remove space and special characters
         [switch]$JoinResults # By default, it will return an object for each SqlInstance. Using this will merge the result and append the SqlInstance
     )
-    $sprocPath = (Resolve-Path "$PSScriptRoot\..\tsql\sp_BlitzIndex.temp.sql").Path
+    $spname = 'sp_BlitzIndex'
+    $sprocPath = (Resolve-Path "$PSScriptRoot\..\tsql\$spname.temp.sql").Path
 
     # Making assumptions about parameters
     $param = @()
@@ -89,10 +93,10 @@ function Invoke-CafeBlitzIndex {
         }
     }
     Write-Verbose "Ignored param ($($ignore -join ', '))"
-    $query = "EXEC #sp_BlitzIndex " + ($param -join ', ')
+    $query = "EXEC #$spname " + ($param -join ', ')
     Write-Verbose $sprocPath
     Write-Verbose "Query used:`n$query"
-
+return
     foreach ($sql in $SqlInstance) {
         # NonPooledConnection to reuse connection
         $smo = Connect-DbaInstance -SqlInstance $sql -DisableException -TrustServerCertificate -NonPooledConnection
@@ -117,8 +121,7 @@ function Invoke-CafeBlitzIndex {
             # Rename property names
             $result = if ($DoNotRenameColumns) {
                 ConvertFrom-DataRows -InputObject $data -RenameColumn $null
-            }
-            else {
+            } else {
                 ConvertFrom-DataRows -InputObject $data -RenameColumn @{ Replace = '\s+|\?|:.*|\(.*'; With = '' }
             }
 

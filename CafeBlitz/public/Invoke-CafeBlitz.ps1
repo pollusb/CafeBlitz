@@ -2,17 +2,18 @@
 .SYNOPSIS
     Wrapper function for sp_Blitz
 .DESCRIPTION
-    Will return an object
+
 .NOTES
     1. Parameters that are true by default are renamed DoNot*. As an example, @CheckUserDatabaseObjects = 1 by default. To override, use the switch -DoNotCheckUserDatabaseObjects.
-    2. Some parameters are ignored like @Help which will be now provide by Get-Help
+    2. Some parameters are ignored like @Help, @Version or @Debug
     3. -Verbose switch will generate the EXEC string with all parameters
     TODO: a parameter to return only 1 table and merge with SqlInstance and columns renamed (they don't need it now)
+
 #>
 function Invoke-CafeBlitz {
     [CmdLetBinding()]
     param (
-        $SqlInstance, # You can provide a list
+        [string[]]$SqlInstance,
 
         # This parameter will also change the output of the function
         [ValidateSet('TABLE', 'COUNT', 'MARKDOWN', 'SCHEMA', 'XML', 'NONE')]
@@ -58,7 +59,6 @@ function Invoke-CafeBlitz {
         [switch]$OutputXMLasNVARCHAR,
 
         [string[]]$EmailRecipients, # VARCHAR(MAX) = NULL
-
         [string]$EmailProfile, # SYSNAME = NULL
 
         # We only return one row per distinct FindingsGroup and Finding and Priority combo, so if you have a thousand triggers or a dozen corrupt databases, we will only show the first one, plus a count of them in the Findings column.
@@ -70,7 +70,8 @@ function Invoke-CafeBlitz {
 
         [switch]$DoNotSkipBlockingChecks # Original: SkipBlockingChecks
     )
-    $sprocPath = (Resolve-Path "$PSScriptRoot\..\tsql\sp_Blitz.temp.sql").Path
+    $spname = 'sp_Blitz'
+    $sprocPath = (Resolve-Path "$PSScriptRoot\..\tsql\$spname.temp.sql").Path
 
     # Building EXEC @parameters using PSBoundParameters
     $ignore = @()
@@ -97,7 +98,7 @@ function Invoke-CafeBlitz {
         }
     }
     Write-Verbose "Ignored param ($($ignore -join ','))"
-    $query = "EXEC #sp_Blitz`n" + ($param -join ",`n")
+    $query = "EXEC #$spname`n" + ($param -join ",`n")
     Write-Verbose $sprocPath
     Write-Verbose "Query used:`n$query"
 

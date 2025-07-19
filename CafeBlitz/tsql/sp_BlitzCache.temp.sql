@@ -29,11 +29,11 @@ IF OBJECT_ID('dbo.sp_BlitzCache') IS NULL
   EXEC ('CREATE PROCEDURE [dbo].[#sp_BlitzCache] AS RETURN 0;');
 GO
 
-IF OBJECT_ID('dbo.sp_BlitzCache') IS NOT NULL AND OBJECT_ID('tempdb.dbo.##BlitzCacheProcs', 'U') IS NOT NULL
+IF OBJECT_ID('tempdb.dbo.##BlitzCacheProcs', 'U') IS NOT NULL
     EXEC ('DROP TABLE ##BlitzCacheProcs;');
 GO
 
-IF OBJECT_ID('dbo.sp_BlitzCache') IS NOT NULL AND OBJECT_ID('tempdb.dbo.##BlitzCacheResults', 'U') IS NOT NULL
+IF OBJECT_ID('tempdb.dbo.##BlitzCacheResults', 'U') IS NOT NULL
     EXEC ('DROP TABLE ##BlitzCacheResults;');
 GO
 
