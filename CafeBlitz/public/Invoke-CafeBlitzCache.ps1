@@ -96,7 +96,7 @@ function Invoke-CafeBlitzCache {
 
     foreach ($sql in $SqlInstance) {
         # NonPooledConnection to reuse connection (to create a temp proc then use it)
-        $smo = Connect-DbaInstance -SqlInstance $sql -DisableException -TrustServerCertificate -NonPooledConnection
+        $smo = Connect-DbaInstance -SqlInstance $sql -NonPooledConnection
         if ($smo) {
             # Create temp stored procedure
             $null = Invoke-DbaQuery -SqlInstance $smo -File $sprocPath

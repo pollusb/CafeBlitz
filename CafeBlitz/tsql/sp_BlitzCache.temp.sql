@@ -7621,3 +7621,4 @@ END; /*Final End*/
 
 GO
 
+EXEC #sp_BlitzCache @SkipAnalysis = 1
