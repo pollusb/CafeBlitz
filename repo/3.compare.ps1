@@ -1,5 +1,5 @@
 <#  STEP 3
-    Use when a new First Responder Kit revision is made available
+    Use when a new First Responder Kit revision is made available, after step 2
     This script will help compare files to reveal where code modifications needs to be done
 #>
 param (

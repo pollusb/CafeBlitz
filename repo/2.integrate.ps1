@@ -1,5 +1,5 @@
 <#  STEP 2
-    Use when a new First Responder Kit revision is made available
+    Use when a new First Responder Kit revision is made available, after step 1
     This script will integrate FRK code into the CafeBlitz Module project as temp sproc
     It keep the old version in frk.old to be able to compare code and parameters
     TODO: should force a new branch ?
