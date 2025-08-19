@@ -1,5 +1,3 @@
--- CafeBlitz integration
-
 SET ANSI_NULLS ON;
 SET ANSI_PADDING ON;
 SET ANSI_WARNINGS ON;
@@ -11,10 +9,10 @@ SET STATISTICS TIME OFF;
 GO
 
 IF OBJECT_ID('dbo.sp_BlitzIndex') IS NULL
-  EXEC ('CREATE PROCEDURE [dbo].[#sp_BlitzIndex] AS RETURN 0;');
+  EXEC ('CREATE PROCEDURE dbo.sp_BlitzIndex AS RETURN 0;');
 GO
 
-ALTER PROCEDURE [dbo].[#sp_BlitzIndex]
+ALTER PROCEDURE dbo.sp_BlitzIndex
     @ObjectName NVARCHAR(386) = NULL, /* 'dbname.schema.table' -- if you are lazy and want to fill in @DatabaseName, @SchemaName and @TableName, and since it's the first parameter can simply do: sp_BlitzIndex 'sch.table' */
     @DatabaseName NVARCHAR(128) = NULL, /*Defaults to current DB if not specified*/
     @SchemaName NVARCHAR(128) = NULL, /*Requires table_name as well.*/
@@ -51,7 +49,7 @@ SET NOCOUNT ON;
 SET STATISTICS XML OFF;
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
-SELECT @Version = '8.25', @VersionDate = '20250704';
+SELECT @Version = '8.24', @VersionDate = '20250407';
 SET @OutputType  = UPPER(@OutputType);
 
 IF(@VersionCheckMode = 1)
@@ -6797,4 +6795,3 @@ BEGIN CATCH
         RETURN;
     END CATCH;
 GO
-

@@ -1,17 +1,19 @@
 <#
 .SYNOPSIS
-    Wrapper for sp_Blitz
+    Wrapper function for sp_Blitz
 .DESCRIPTION
 
 .NOTES
-    1. Parameters that are true by default are renamed DoNot*. As an example, @CheckUserDatabaseObjects = 1 by default. To disable, use the switch -DoNotCheckUserDatabaseObjects.
-    2. Some parameters are ignored like @Help
-    3. -Verbose option will generate the EXEC string with all parameters
+    1. Parameters that are true by default are renamed DoNot*. As an example, @CheckUserDatabaseObjects = 1 by default. To override, use the switch -DoNotCheckUserDatabaseObjects.
+    2. Some parameters are ignored like @Help, @Version or @Debug
+    3. -Verbose switch will generate the EXEC string with all parameters
+    TODO: a parameter to return only 1 table and merge with SqlInstance and columns renamed (they don't need it now)
+
 #>
 function Invoke-CafeBlitz {
     [CmdLetBinding()]
     param (
-        $SqlInstance,
+        [string[]]$SqlInstance,
 
         # This parameter will also change the output of the function
         [ValidateSet('TABLE', 'COUNT', 'MARKDOWN', 'SCHEMA', 'XML', 'NONE')]
@@ -57,7 +59,6 @@ function Invoke-CafeBlitz {
         [switch]$OutputXMLasNVARCHAR,
 
         [string[]]$EmailRecipients, # VARCHAR(MAX) = NULL
-
         [string]$EmailProfile, # SYSNAME = NULL
 
         # We only return one row per distinct FindingsGroup and Finding and Priority combo, so if you have a thousand triggers or a dozen corrupt databases, we will only show the first one, plus a count of them in the Findings column.
@@ -69,7 +70,8 @@ function Invoke-CafeBlitz {
 
         [switch]$DoNotSkipBlockingChecks # Original: SkipBlockingChecks
     )
-    $sprocPath = "$PSScriptRoot\..\tsql\sp_Blitz.temp.sql"
+    $spname = 'sp_Blitz'
+    $sprocPath = (Resolve-Path "$PSScriptRoot\..\tsql\$spname.temp.sql").Path
 
     # Building EXEC @parameters using PSBoundParameters
     $ignore = @()
@@ -94,11 +96,11 @@ function Invoke-CafeBlitz {
         else {
             "@{0} = '{1}'" -f $bp.Key, $bp.Value
         }
-        Write-Verbose "Ignored param ($($ignore -join ','))"
     }
-    $queryExec = "EXEC #sp_Blitz`n" + ($param -join ",`n")
-    Write-Verbose $queryExec
-    #if ($PSBoundParameters['Verbose']) { return }
+    Write-Verbose "Ignored param ($($ignore -join ','))"
+    $query = "EXEC #$spname`n" + ($param -join ",`n")
+    Write-Verbose $sprocPath
+    Write-Verbose "Query used:`n$query"
 
     foreach ($sql in $SqlInstance) {
         # Connect NonPooledConnection
@@ -108,17 +110,22 @@ function Invoke-CafeBlitz {
             Invoke-DbaQuery -SqlInstance $smo -File $sprocPath
 
             # Execute temp stored procedure
-            $result = switch ($OutputType) {
-                'TABLE' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As PSObjectArray } # TODO: unsure this works well
-                'COUNT' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As SingleValue }
-                'MARKDOWN' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As SingleValue }
-                'SCHEMA' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As SingleValue }
-                'XML' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec -As SingleValue }
-                'NONE' { Invoke-DbaQuery -SqlInstance $smo -Query $queryExec }
+            $result = switch -Regex ($OutputType) {
+                'TABLE' {
+                    Invoke-DbaQuery -SqlInstance $smo -Query $query -As PSObjectArray; break }
+                'COUNT|MARKDOWN|SCHEMA|XML' {
+                    Invoke-DbaQuery -SqlInstance $smo -Query $query -As SingleValue; break }
+                'NONE' {
+                    Invoke-DbaQuery -SqlInstance $smo -Query $query; break }
+            }
+            if ($OutputType -eq 'XML') {
+                $result = $result -join ''
             }
             [PSCustomObject]@{
                 SqlInstance = $sql.ToUpper()
                 Date        = Get-Date
+                Version     = Find-BlitzVersion $sprocPath
+                Uptime      = Get-CafeSqlUptime -SqlInstance $smo
                 OutputType  = $OutputType
                 Result      = $result
             }
