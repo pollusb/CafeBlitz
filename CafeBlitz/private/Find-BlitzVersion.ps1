@@ -10,18 +10,19 @@ function Find-BlitzVersion {
             $Code = (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/BrentOzarULTD/SQL-Server-First-Responder-Kit/refs/heads/main/sp_Blitz.sql').RawContent
             'Latest from GitHub'
         }
-        elseif ($Path -like 'http*') {
+        elseif ($Path -like 'https*') {
             $Code = (Invoke-WebRequest -Uri $Path).RawContent
             $Path
         }
         elseif ((-not $Code) -and (Test-Path $Path)) {
-            $Code = Get-Content -Path $Path
+            $Code = Get-Content -Path $Path -Raw
             $Path
         }
         else {
             $Code
         }
         $pattern = "SELECT @Version = '([\d\.]+)', @VersionDate = '(\d+)';"
+        $code.Count
         $M = $code | Select-String -Pattern $pattern
         if (!$M) { throw 'Pattern was not found' }
         [PSCustomObject]@{
@@ -32,6 +33,6 @@ function Find-BlitzVersion {
         # 'Version {0} Date {1}' -f $M.Matches.Groups[1].Value, $M.Matches.Groups[2].Value.Insert(4, '-').Insert(7, '-')
     }
     else {
-        throw 'You need to provide only one parameter'
+        throw 'You need to provide only one parameter -Path, -Code or -LatestFromGitHub'
     }
 }
