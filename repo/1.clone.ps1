@@ -17,8 +17,7 @@ if (Test-Path $PSScriptRoot\frk\sp_Blitz.sql) {
 } else {
     Write-Host ("New version = {0}, could not find old one" -f $verNew.Version)
 }
-
-
+pause
 if ($verNew.Version -gt $verActual.Version) {
     if (Test-Path $PSScriptRoot\frk.old) {
         Remove-Item $PSScriptRoot\frk.old -Recurse -Force -ErrorAction SilentlyContinue

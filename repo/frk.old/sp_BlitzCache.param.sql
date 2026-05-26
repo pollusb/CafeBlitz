@@ -1,0 +1,43 @@
+@Help BIT = 0,
+@Top INT = NULL,
+@SortOrder VARCHAR(50) = 'CPU',
+@UseTriggersAnyway BIT = NULL,
+@ExportToExcel BIT = 0,
+@ExpertMode TINYINT = 0,
+@OutputType VARCHAR(20) = 'TABLE' ,
+@OutputServerName NVARCHAR(258) = NULL ,
+@OutputDatabaseName NVARCHAR(258) = NULL ,
+@OutputSchemaName NVARCHAR(258) = NULL ,
+@OutputTableName NVARCHAR(258) = NULL , -- do NOT use ##BlitzCacheResults or ##BlitzCacheProcs as they are used as work tables in this procedure
+@ConfigurationDatabaseName NVARCHAR(128) = NULL ,
+@ConfigurationSchemaName NVARCHAR(258) = NULL ,
+@ConfigurationTableName NVARCHAR(258) = NULL ,
+@DurationFilter DECIMAL(38,4) = NULL ,
+@HideSummary BIT = 0 ,
+@IgnoreSystemDBs BIT = 1 ,
+@IgnoreReadableReplicaDBs BIT = 1 ,
+@OnlyQueryHashes VARCHAR(MAX) = NULL ,
+@IgnoreQueryHashes VARCHAR(MAX) = NULL ,
+@OnlySqlHandles VARCHAR(MAX) = NULL ,
+@IgnoreSqlHandles VARCHAR(MAX) = NULL ,
+@QueryFilter VARCHAR(10) = 'ALL' ,
+@DatabaseName NVARCHAR(128) = NULL ,
+@StoredProcName NVARCHAR(128) = NULL,
+@SlowlySearchPlansFor NVARCHAR(4000) = NULL,
+@Reanalyze BIT = 0 ,
+@SkipAnalysis BIT = 0 ,
+@BringThePain BIT = 0 ,
+@MinimumExecutionCount INT = 0,
+@Debug TINYINT = 0, /* 0 = no debugging info, 1 = normal debugging info, 2 = AI debugging info */
+@CheckDateOverride DATETIMEOFFSET = NULL,
+@MinutesBack INT = NULL,
+@AI TINYINT = 0, /* 1 = ask for advice, 2 = build prompt but don't actually call AI. Only works with a single query plan: automatically sets @ExpertMode = 1, @KeepCRLF = 1. */
+@AIModel VARCHAR(200) = NULL, /* Defaults to gpt-4.1-mini */
+@AIURL VARCHAR(200) = NULL, /* Defaults to https://api.openai.com/v1/chat/completions */
+@AICredential VARCHAR(200) = NULL, /* Defaults to 'https://api.openai.com/' or the root of your AIURL, trailing slash included */
+@AIConfig NVARCHAR(500) = NULL, /* Table where AI config data is stored - can be in the format db.schema.table, schema.table, or just table. */
+@Version     VARCHAR(30) = NULL OUTPUT,
+@VersionDate DATETIME = NULL OUTPUT,
+@VersionCheckMode BIT = 0,
+@KeepCRLF BIT = 0
+

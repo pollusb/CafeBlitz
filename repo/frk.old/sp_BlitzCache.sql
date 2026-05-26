@@ -1,5 +1,3 @@
--- CafeBlitz integration
-
 SET ANSI_NULLS ON;
 SET ANSI_PADDING ON;
 SET ANSI_WARNINGS ON;
@@ -26,14 +24,14 @@ BEGIN
 END;
 
 IF OBJECT_ID('dbo.sp_BlitzCache') IS NULL
-  EXEC ('CREATE PROCEDURE [dbo].[#sp_BlitzCache] AS RETURN 0;');
+  EXEC ('CREATE PROCEDURE dbo.sp_BlitzCache AS RETURN 0;');
 GO
 
-IF OBJECT_ID('tempdb.dbo.##BlitzCacheProcs', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.sp_BlitzCache') IS NOT NULL AND OBJECT_ID('tempdb.dbo.##BlitzCacheProcs', 'U') IS NOT NULL
     EXEC ('DROP TABLE ##BlitzCacheProcs;');
 GO
 
-IF OBJECT_ID('tempdb.dbo.##BlitzCacheResults', 'U') IS NOT NULL
+IF OBJECT_ID('dbo.sp_BlitzCache') IS NOT NULL AND OBJECT_ID('tempdb.dbo.##BlitzCacheResults', 'U') IS NOT NULL
     EXEC ('DROP TABLE ##BlitzCacheResults;');
 GO
 
@@ -244,7 +242,7 @@ CREATE TABLE ##BlitzCacheProcs (
     );
 GO 
 
-ALTER PROCEDURE [dbo].[#sp_BlitzCache]
+ALTER PROCEDURE dbo.sp_BlitzCache
     @Help BIT = 0,
     @Top INT = NULL,
     @SortOrder VARCHAR(50) = 'CPU',
@@ -282,9 +280,7 @@ ALTER PROCEDURE [dbo].[#sp_BlitzCache]
     @AIModel VARCHAR(200) = NULL, /* Defaults to gpt-4.1-mini */
     @AIURL VARCHAR(200) = NULL, /* Defaults to https://api.openai.com/v1/chat/completions */
     @AICredential VARCHAR(200) = NULL, /* Defaults to 'https://api.openai.com/' or the root of your AIURL, trailing slash included */
-    @AIConfigTable NVARCHAR(500) = NULL, /* Table where AI provider config is stored - can be in the format db.schema.table, schema.table, or just table. */
-    @AIPromptConfigTable NVARCHAR(500) = NULL, /* Table where AI prompt templates are stored - db.schema.table, schema.table, or just table. */
-    @AIPrompt NVARCHAR(200) = NULL, /* Which prompt to use from the prompts table */
+    @AIConfig NVARCHAR(500) = NULL, /* Table where AI config data is stored - can be in the format db.schema.table, schema.table, or just table. */
 	@Version     VARCHAR(30) = NULL OUTPUT,
 	@VersionDate DATETIME = NULL OUTPUT,
 	@VersionCheckMode BIT = 0,
@@ -296,7 +292,7 @@ SET NOCOUNT ON;
 SET STATISTICS XML OFF;
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
-SELECT @Version = '8.30', @VersionDate = '20260313';
+SELECT @Version = '8.29', @VersionDate = '20260203';
 SET @OutputType = UPPER(@OutputType);
 
 IF(@VersionCheckMode = 1)
@@ -874,31 +870,22 @@ BEGIN
    EXEC(@config_sql);
 END;
 
-CREATE TABLE #ai_providers
+CREATE TABLE #ai_configuration
 (Id INT PRIMARY KEY CLUSTERED,
- Model_Nickname NVARCHAR(200),
  AI_Model NVARCHAR(100) INDEX AI_Model,
  AI_URL NVARCHAR(500),
  AI_Database_Scoped_Credential_Name NVARCHAR(500),
+ AI_System_Prompt_Override NVARCHAR(4000),
  AI_Parameters NVARCHAR(4000),
- Payload_Template NVARCHAR(4000),
+ Payload_Template_Override NVARCHAR(4000),
  Timeout_Seconds TINYINT,
  Context INT,
- Default_Model BIT DEFAULT 0);
-
-CREATE TABLE #ai_prompts
-(Id INT PRIMARY KEY CLUSTERED,
- Prompt_Nickname NVARCHAR(200) INDEX IX_Prompt_Nickname,
- AI_System_Prompt NVARCHAR(4000),
- Default_Prompt BIT DEFAULT 0);
+ DefaultModel BIT DEFAULT 0);
 
 DECLARE
-    @AIConfigDatabaseName NVARCHAR(128) = CASE WHEN @AIConfigTable IS NULL THEN NULL ELSE PARSENAME(@AIConfigTable, 3) END,
-    @AIConfigSchemaName NVARCHAR(258) = CASE WHEN @AIConfigTable IS NULL THEN NULL ELSE PARSENAME(@AIConfigTable, 2) END,
-    @AIConfigTableName NVARCHAR(258) = CASE WHEN @AIConfigTable IS NULL THEN NULL ELSE PARSENAME(@AIConfigTable, 1) END,
-    @AIPromptDatabaseName NVARCHAR(128) = CASE WHEN @AIPromptConfigTable IS NULL THEN NULL ELSE PARSENAME(@AIPromptConfigTable, 3) END,
-    @AIPromptSchemaName NVARCHAR(258) = CASE WHEN @AIPromptConfigTable IS NULL THEN NULL ELSE PARSENAME(@AIPromptConfigTable, 2) END,
-    @AIPromptTableName NVARCHAR(258) = CASE WHEN @AIPromptConfigTable IS NULL THEN NULL ELSE PARSENAME(@AIPromptConfigTable, 1) END,
+    @AIConfigDatabaseName NVARCHAR(128) = CASE WHEN @AIConfig IS NULL THEN NULL ELSE PARSENAME(@AIConfig, 3) END,
+    @AIConfigSchemaName NVARCHAR(258) = CASE WHEN @AIConfig IS NULL THEN NULL ELSE PARSENAME(@AIConfig, 2) END,
+    @AIConfigTableName NVARCHAR(258) = CASE WHEN @AIConfig IS NULL THEN NULL ELSE PARSENAME(@AIConfig, 1) END,
     @AISystemPrompt NVARCHAR(4000),
     @AIParameters NVARCHAR(4000),
     @AIPayloadTemplate NVARCHAR(MAX),
@@ -907,44 +894,15 @@ DECLARE
     @AIContext INT;
 
 
-IF @AIPrompt IS NOT NULL AND @AIPromptConfigTable IS NULL
+IF @AIConfig IS NOT NULL
 BEGIN
-    RAISERROR('@AIPrompt requires @AIPromptConfigTable to also be specified so we can look up the prompt.', 12, 1);
-    RETURN;
-END;
-
-IF @AIConfigTable IS NOT NULL
-BEGIN
-   RAISERROR(N'Reading values from AI Provider Configuration Table', 0, 1) WITH NOWAIT;
-   SET @config_sql = N'INSERT INTO #ai_providers (Id, Model_Nickname, AI_Model, AI_URL, AI_Database_Scoped_Credential_Name, AI_Parameters, Payload_Template, Timeout_Seconds, Context, Default_Model)
-        SELECT Id, Model_Nickname, AI_Model, AI_URL, AI_Database_Scoped_Credential_Name, AI_Parameters, Payload_Template, Timeout_Seconds, Context, Default_Model FROM '
+   RAISERROR(N'Reading values from AI Configuration Table', 0, 1) WITH NOWAIT;
+   SET @config_sql = N'INSERT INTO #ai_configuration (Id, AI_Model, AI_URL, AI_Database_Scoped_Credential_Name, AI_System_Prompt_Override, AI_Parameters, Payload_Template_Override, Timeout_Seconds, Context, DefaultModel)
+        SELECT Id, AI_Model, AI_URL, AI_Database_Scoped_Credential_Name, AI_System_Prompt_Override, AI_Parameters, Payload_Template_Override, Timeout_Seconds, Context, DefaultModel FROM '
         + CASE WHEN @AIConfigDatabaseName IS NOT NULL THEN (QUOTENAME(@AIConfigDatabaseName) + N'.') ELSE N'' END
         + CASE WHEN @AIConfigSchemaName IS NOT NULL THEN (QUOTENAME(@AIConfigSchemaName) + N'.') ELSE N'' END
-        + QUOTENAME(@AIConfigTableName) + N' WHERE Default_Model = 1 OR @AIModel = AI_Model OR @AIModel = Model_Nickname ; ';
+        + QUOTENAME(@AIConfigTableName) + N' WHERE (@AIModel IS NULL AND DefaultModel = 1) OR @AIModel IN (AI_Model, Nickname) ; ';
    EXEC sp_executesql @config_sql, N'@AIModel NVARCHAR(100)', @AIModel;
-END;
-
-IF @AIModel IS NOT NULL AND @AIConfigTable IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM #ai_providers WHERE AI_Model = @AIModel OR Model_Nickname = @AIModel)
-BEGIN
-    DECLARE @AIModelRequested NVARCHAR(200) = @AIModel;
-    DECLARE @AIFallbackModel NVARCHAR(200);
-    SELECT TOP 1 @AIFallbackModel = AI_Model FROM #ai_providers WHERE Default_Model = 1 ORDER BY Id;
-    IF @AIFallbackModel IS NULL SET @AIFallbackModel = N'gpt-5-nano';
-    RAISERROR('@AIModel "%s" was not found in configuration table %s. Using "%s" instead.',
-        10, 1, @AIModelRequested, @AIConfigTable, @AIFallbackModel) WITH NOWAIT;
-    SET @AIModel = NULL;
-END;
-
-IF @AIPromptConfigTable IS NOT NULL
-BEGIN
-   RAISERROR(N'Reading values from AI Prompts Table', 0, 1) WITH NOWAIT;
-   SET @config_sql = N'INSERT INTO #ai_prompts (Id, Prompt_Nickname, AI_System_Prompt, Default_Prompt)
-        SELECT Id, Prompt_Nickname, AI_System_Prompt, Default_Prompt FROM '
-        + CASE WHEN @AIPromptDatabaseName IS NOT NULL THEN (QUOTENAME(@AIPromptDatabaseName) + N'.') ELSE N'' END
-        + CASE WHEN @AIPromptSchemaName IS NOT NULL THEN (QUOTENAME(@AIPromptSchemaName) + N'.') ELSE N'' END
-        + QUOTENAME(@AIPromptTableName) + N' WHERE (@AIPrompt IS NULL AND Default_Prompt = 1) OR @AIPrompt = Prompt_Nickname ; ';
-   EXEC sp_executesql @config_sql, N'@AIPrompt NVARCHAR(200)', @AIPrompt;
 END;
 
 
@@ -955,10 +913,7 @@ IF @AI > 0
     SELECT @ExpertMode = 1, @KeepCRLF = 1;
 
     IF @Debug = 2
-        BEGIN
-        SELECT N'ai_providers' AS TableLabel, * FROM #ai_providers;
-        SELECT N'ai_prompts' AS TableLabel, * FROM #ai_prompts;
-        END
+        SELECT N'ai_configuration' AS TableLabel, * FROM #ai_configuration;
 
     IF @AI = 1 AND NOT EXISTS(SELECT * FROM sys.all_objects WHERE name = 'sp_invoke_external_rest_endpoint')
         BEGIN
@@ -969,39 +924,28 @@ IF @AI > 0
         RAISERROR(N'@AI was set to 1, but sp_invoke_external_rest_endpoint does not exist here, so we can''t call AI services. Setting @AI to 2 instead to just generate prompts.', 0, 1) WITH NOWAIT;
         END
 
-    /* Check the providers table */
     IF @AIModel IS NULL
+        /* Check the config table */
         SELECT TOP 1 @AIModel = AI_Model, @AIURL = AI_URL,
             @AICredential = AI_Database_Scoped_Credential_Name,
+            @AISystemPrompt = AI_System_Prompt_Override,
             @AIParameters = AI_Parameters,
-            @AIPayloadTemplate = Payload_Template,
             @AITimeoutSeconds = COALESCE(Timeout_Seconds, 230),
-            @AIContext = Context
-            FROM #ai_providers
-            WHERE Default_Model = 1
+            @AIContext = Context,
+            @AIPayloadTemplate = Payload_Template_Override
+            FROM #ai_configuration
+            WHERE DefaultModel = 1
             ORDER BY Id;
     ELSE
-        SELECT TOP 1 @AIModel = AI_Model,
+        SELECT TOP 1 @AIModel = AI_Model, 
             @AIURL = COALESCE(@AIURL, AI_URL),
             @AICredential = COALESCE(@AICredential, AI_Database_Scoped_Credential_Name),
+            @AISystemPrompt = AI_System_Prompt_Override,
             @AIParameters = AI_Parameters,
-            @AIPayloadTemplate = Payload_Template,
             @AITimeoutSeconds = COALESCE(Timeout_Seconds, 230),
-            @AIContext = Context
-            FROM #ai_providers
-            WHERE AI_Model = @AIModel OR Model_Nickname = @AIModel
-            ORDER BY Id;
-
-    /* Check the prompts table */
-    IF @AIPrompt IS NULL
-        SELECT TOP 1 @AISystemPrompt = AI_System_Prompt
-            FROM #ai_prompts
-            WHERE Default_Prompt = 1
-            ORDER BY Id;
-    ELSE
-        SELECT TOP 1 @AISystemPrompt = AI_System_Prompt
-            FROM #ai_prompts
-            WHERE Prompt_Nickname = @AIPrompt
+            @AIContext = Context,
+            @AIPayloadTemplate = Payload_Template_Override
+            FROM #ai_configuration
             ORDER BY Id;
         
     IF @AIModel IS NULL
@@ -1057,12 +1001,6 @@ IF @AI > 0
             SELECT @AIModel AS AIModel, @AIURL AS AIUrl, @AICredential AS AICredential,
                 @AIContext AS AIContext, @AIParameters AS AIParameters, @AITimeoutSeconds AS AITimeoutSeconds,
                 @AISystemPrompt AS AISystemPrompt, @AIPayloadTemplate AS AIPayloadTemplate;
-        END;
-
-    IF @AIPrompt IS NOT NULL AND NOT EXISTS (SELECT 1 FROM #ai_prompts WHERE Prompt_Nickname = @AIPrompt)
-        BEGIN
-            RAISERROR('@AIPrompt was specified but no matching prompt was found in the prompts table.',12,1);
-            RETURN;
         END;
 
     IF @AI = 1 AND (@AIModel IS NULL OR @AIURL IS NULL OR @AISystemPrompt IS NULL OR @AICredential IS NULL OR @AIPayloadTemplate IS NULL)
@@ -1141,7 +1079,7 @@ IF @Top IS NULL
     OR @QueryFilter IS NULL 
     OR @Reanalyze IS NULL
 BEGIN
-    RAISERROR(N'Several parameters (@Top, @SortOrder, @QueryFilter, @Reanalyze) are required. Do not set them to NULL. Please try again.', 16, 1) WITH NOWAIT;
+    RAISERROR(N'Several parameters (@Top, @SortOrder, @QueryFilter, @renalyze) are required. Do not set them to NULL. Please try again.', 16, 1) WITH NOWAIT;
     RETURN;
 END;
 
@@ -2059,12 +1997,10 @@ IF @SortOrder = 'duplicate'	/* Issue #3345 */
     SET @body += N'     INNER JOIN #duplicate_query_filter AS dqf ON x.sql_handle = dqf.sql_handle AND x.plan_handle = dqf.plan_handle AND x.creation_time = dqf.duplicate_creation_time ' + @nl ;
     END
 
-/* Removing to fix issue #3791
 IF @VersionShowsAirQuoteActualPlans = 1
     BEGIN
     SET @body += N'     CROSS APPLY sys.dm_exec_query_plan_stats(x.plan_handle) AS deqps ' + @nl ;
     END
-*/
 
 SET @body += N'        WHERE  1 = 1 ' +  @nl ;
 
@@ -2080,7 +2016,7 @@ IF @IgnoreSystemDBs = 1
 	SET @body += N'               AND COALESCE(LOWER(DB_NAME(CAST(xpa.value AS INT))), '''') NOT IN (''master'', ''model'', ''msdb'', ''tempdb'', ''32767'', ''dbmaintenance'', ''dbadmin'', ''dbatools'') AND COALESCE(DB_NAME(CAST(xpa.value AS INT)), '''') NOT IN (SELECT name FROM sys.databases WHERE is_distributor = 1)' + @nl ;
 	END; 
 
-IF @DatabaseName IS NOT NULL AND @DatabaseName <> N''
+IF @DatabaseName IS NOT NULL OR @DatabaseName <> N''
 	BEGIN 
     RAISERROR(N'Filtering database name chosen', 0, 1) WITH NOWAIT;
 	SET @body += N'               AND CAST(xpa.value AS BIGINT) = DB_ID(N'
@@ -2337,9 +2273,7 @@ BEGIN
            CASE WHEN t.t_TotalReads = 0 THEN 0
                 ELSE CAST(ROUND(100.00 * total_logical_reads / t.t_TotalReads, 2) AS MONEY)
                 END AS PercentReadsByType,
-           CASE WHEN t.t_TotalExecs = 0 THEN 0
-                ELSE CAST(ROUND(100.00 * execution_count / t.t_TotalExecs, 2) AS MONEY)
-                END AS PercentExecutionsByType,
+           CAST(ROUND(100.00 * execution_count / t.t_TotalExecs, 2) AS MONEY) AS PercentExecutionsByType,
            (total_elapsed_time / 1000.0) / execution_count AS AvgDuration ,
            (total_elapsed_time / 1000.0) AS TotalDuration ,
            total_logical_reads / execution_count AS AvgReads ,
@@ -2458,7 +2392,7 @@ BEGIN
            qs.max_worker_time / 1000.0,
            CASE WHEN qp.query_plan.value(''declare namespace p="http://schemas.microsoft.com/sqlserver/2004/07/showplan";max(//p:RelOp/@Parallel)'', ''float'')  > 0 THEN 1 ELSE 0 END,
            qs.min_elapsed_time / 1000.0,
-           qs.max_elapsed_time / 1000.0,
+           qs.max_worker_time  / 1000.0,
            age_minutes,
            age_minutes_lifetime,
     	   @SortOrder ';
@@ -2683,16 +2617,16 @@ SELECT @sql = REPLACE(@sql, '#sortable#', @sort);
 IF @Debug = 1
     BEGIN
 		PRINT N'Printing dynamic SQL stored in @sql: ';
-        PRINT SUBSTRING(@sql, 1, 4000);
-        PRINT SUBSTRING(@sql, 4001, 4000);
-        PRINT SUBSTRING(@sql, 8001, 4000);
-        PRINT SUBSTRING(@sql, 12001, 4000);
-        PRINT SUBSTRING(@sql, 16001, 4000);
-        PRINT SUBSTRING(@sql, 20001, 4000);
-        PRINT SUBSTRING(@sql, 24001, 4000);
-        PRINT SUBSTRING(@sql, 28001, 4000);
-        PRINT SUBSTRING(@sql, 32001, 4000);
-        PRINT SUBSTRING(@sql, 36001, 4000);
+        PRINT SUBSTRING(@sql, 0, 4000);
+        PRINT SUBSTRING(@sql, 4000, 8000);
+        PRINT SUBSTRING(@sql, 8000, 12000);
+        PRINT SUBSTRING(@sql, 12000, 16000);
+        PRINT SUBSTRING(@sql, 16000, 20000);
+        PRINT SUBSTRING(@sql, 20000, 24000);
+        PRINT SUBSTRING(@sql, 24000, 28000);
+        PRINT SUBSTRING(@sql, 28000, 32000);
+        PRINT SUBSTRING(@sql, 32000, 36000);
+        PRINT SUBSTRING(@sql, 36000, 40000);
     END;
 
 RAISERROR(N'Creating temp tables for results and warnings.', 0, 1) WITH NOWAIT;
@@ -3126,7 +3060,6 @@ WHERE   ##BlitzCacheProcs.SqlHandle = y.SqlHandle
         AND ##BlitzCacheProcs.QueryHash = y.QueryHash
         AND ##BlitzCacheProcs.DatabaseName = y.DatabaseName
         AND ##BlitzCacheProcs.PlanHandle IS NULL
-        AND ##BlitzCacheProcs.SPID = @@SPID
 OPTION (RECOMPILE) ;
 
 
@@ -4338,8 +4271,8 @@ SET sp.variable_datatype = vi.variable_datatype,
 	sp.compile_time_value = vi.compile_time_value
 FROM   #stored_proc_info AS sp
 JOIN #variable_info AS vi
-ON ((sp.proc_name = 'adhoc' AND sp.QueryHash = vi.QueryHash)
-OR 	(sp.proc_name <> 'adhoc' AND sp.SqlHandle = vi.SqlHandle))
+ON (sp.proc_name = 'adhoc' AND sp.QueryHash = vi.QueryHash)
+OR 	(sp.proc_name <> 'adhoc' AND sp.SqlHandle = vi.SqlHandle)
 AND sp.variable_name = vi.variable_name
 OPTION (RECOMPILE);
 
@@ -4397,10 +4330,10 @@ JOIN (
 				N'SET ANSI_NULLS ' + CASE WHEN [ANSI_NULLS] = 'true' THEN N'ON ' ELSE N'OFF ' END + NCHAR(10) +
 				N'SET ANSI_PADDING ' + CASE WHEN [ANSI_PADDING] = 'true' THEN N'ON ' ELSE N'OFF ' END + NCHAR(10) +
 				N'SET ANSI_WARNINGS ' + CASE WHEN [ANSI_WARNINGS] = 'true' THEN N'ON ' ELSE N'OFF ' END + NCHAR(10) +
-				N'SET ARITHABORT ' + CASE WHEN [ARITHABORT] = 'true' THEN N'ON ' ELSE N'OFF ' END + NCHAR(10) +
+				N'SET ARITHABORT ' + CASE WHEN [ARITHABORT] = 'true' THEN N'ON ' ELSE N' OFF ' END + NCHAR(10) +
 				N'SET CONCAT_NULL_YIELDS_NULL ' + CASE WHEN [CONCAT_NULL_YIELDS_NULL] = 'true' THEN N'ON ' ELSE N'OFF ' END + NCHAR(10) +
 				N'SET NUMERIC_ROUNDABORT ' + CASE WHEN [NUMERIC_ROUNDABORT] = 'true' THEN N'ON ' ELSE N'OFF ' END + NCHAR(10) +
-				N'SET QUOTED_IDENTIFIER ' + CASE WHEN [QUOTED_IDENTIFIER] = 'true' THEN N'ON ' ELSE N'OFF ' END + NCHAR(10) AS [ansi_set_options]
+				N'SET QUOTED_IDENTIFIER ' + CASE WHEN [QUOTED_IDENTIFIER] = 'true' THEN N'ON ' ELSE N'OFF ' + NCHAR(10) END AS [ansi_set_options]
 		FROM (
 			SELECT
 				s.SqlHandle,
@@ -4594,9 +4527,9 @@ OPTION (RECOMPILE);
 /*Begin Missing Index*/
 IF EXISTS ( SELECT 1/0 
             FROM ##BlitzCacheProcs AS bbcp 
-            WHERE (bbcp.missing_index_count > 0
+            WHERE bbcp.missing_index_count > 0
 		    OR bbcp.index_spool_cost > 0
-		    OR bbcp.index_spool_rows > 0)
+		    OR bbcp.index_spool_rows > 0
 		    AND bbcp.SPID = @@SPID )
 		   
 		BEGIN		
@@ -4945,7 +4878,7 @@ UPDATE p
                     CASE WHEN (CAST(pa.value AS INT) & 32 = 32) THEN ', ANSI_NULLS' ELSE '' END +
                     CASE WHEN (CAST(pa.value AS INT) & 64 = 64) THEN ', QUOTED_IDENTIFIER' ELSE '' END +
                     CASE WHEN (CAST(pa.value AS INT) & 4096 = 4096) THEN ', ARITH_ABORT' ELSE '' END +
-                    CASE WHEN (CAST(pa.value AS INT) & 8192 = 8192) THEN ', NUMERIC_ROUNDABORT' ELSE '' END 
+                    CASE WHEN (CAST(pa.value AS INT) & 8192 = 8191) THEN ', NUMERIC_ROUNDABORT' ELSE '' END 
                     , 2, 200000)
 FROM   ##BlitzCacheProcs p
        CROSS APPLY sys.dm_exec_plan_attributes(p.PlanHandle) pa
@@ -4966,8 +4899,8 @@ OPTION (RECOMPILE);
 UPDATE p
 SET    is_cursor = 1
 FROM   ##BlitzCacheProcs p
-WHERE (QueryHash = 0x0000000000000000
-OR QueryPlanHash = 0x0000000000000000)
+WHERE QueryHash = 0x0000000000000000
+OR QueryPlanHash = 0x0000000000000000
 AND SPID = @@SPID
 OPTION (RECOMPILE);
 
@@ -5170,7 +5103,7 @@ SET Warnings = 'No warnings detected. ' + CASE @ExpertMode
 											THEN ' Try running sp_BlitzCache with @ExpertMode = 1 to find more advanced problems.' 
 											ELSE '' 
 										  END
-WHERE (Warnings = '' OR	Warnings IS NULL)
+WHERE Warnings = '' OR	Warnings IS NULL
 AND SPID = @@SPID
 OPTION (RECOMPILE);
 
@@ -5180,103 +5113,12 @@ OPTION (RECOMPILE);
 IF @AI >= 1
 BEGIN
     RAISERROR('Building AI prompts for query plans', 0, 1) WITH NOWAIT;
-
-    /* If the target database has a database-level extended property named CONSTITUTION.md,
-       include it in the prompt as additional guidance for the LLM. */
-    IF OBJECT_ID('tempdb..#ai_constitution', 'U') IS NOT NULL
-        DROP TABLE #ai_constitution;
-
-    CREATE TABLE #ai_constitution
-    (
-        DatabaseName SYSNAME NOT NULL PRIMARY KEY,
-        Constitution NVARCHAR(MAX) NULL
-    );
-
-    DECLARE @ai_db SYSNAME,
-            @ai_sql NVARCHAR(MAX),
-            @ai_constitution NVARCHAR(MAX),
-            @ai_engine_edition INT;
-
-    SET @ai_engine_edition = CONVERT(INT, SERVERPROPERTY('EngineEdition'));
-
-    DECLARE ai_db_cursor CURSOR LOCAL FAST_FORWARD FOR
-        SELECT DISTINCT DatabaseName
-        FROM ##BlitzCacheProcs
-        WHERE SPID = @@SPID
-          AND QueryPlan IS NOT NULL
-          AND DatabaseName IS NOT NULL;
-
-    OPEN ai_db_cursor;
-
-    FETCH NEXT FROM ai_db_cursor INTO @ai_db;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        BEGIN TRY
-            SET @ai_constitution = NULL;
-
-            /* Note: database-level extended properties live in sys.extended_properties with class=0, major_id=0, minor_id=0 */
-
-            /* Azure SQL DB does not allow cross-database three-part names. In that environment, only read from the current database. */
-            IF @ai_engine_edition = 5
-            BEGIN
-                IF @ai_db = DB_NAME()
-                    SET @ai_sql = N'SELECT @c = CAST(value AS NVARCHAR(MAX))
-                                    FROM sys.extended_properties
-                                    WHERE class = 0
-                                      AND major_id = 0
-                                      AND minor_id = 0
-                                      AND name = N''CONSTITUTION.md'';';
-                ELSE
-                    SET @ai_sql = NULL;
-            END
-            ELSE
-            BEGIN
-                SET @ai_sql = N'SELECT @c = CAST(value AS NVARCHAR(MAX))
-                                FROM ' + QUOTENAME(@ai_db) + N'.sys.extended_properties
-                                WHERE class = 0
-                                  AND major_id = 0
-                                  AND minor_id = 0
-                                  AND name = N''CONSTITUTION.md'';';
-            END;
-
-            IF @ai_sql IS NOT NULL
-            BEGIN
-                EXEC sys.sp_executesql
-                    @ai_sql,
-                    N'@c NVARCHAR(MAX) OUTPUT',
-                    @c = @ai_constitution OUTPUT;
-            END;
-
-            IF @ai_constitution IS NOT NULL AND LEN(@ai_constitution) > 0
-                INSERT INTO #ai_constitution (DatabaseName, Constitution)
-                VALUES (@ai_db, @ai_constitution);
-        END TRY
-        BEGIN CATCH
-            /* If we can't read it (permissions, offline, etc), just skip. */
-        END CATCH;
-
-        FETCH NEXT FROM ai_db_cursor INTO @ai_db;
-    END;
-
-    CLOSE ai_db_cursor;
-    DEALLOCATE ai_db_cursor;
-
+    
     /* Update ai_prompt column with query metrics for rows that have query plans */
     UPDATE p
-    SET ai_prompt = COALESCE(ai_prompt, N'') + N'---' + @nl + N'This database has an extended property named CONSTITUTION.md that provides additional guidance for AI analysis. Here is the content of that property:' + @nl + N'---' + @nl + c.Constitution + @nl + N'---' + @nl
-    FROM ##BlitzCacheProcs p
-    INNER JOIN #ai_constitution c ON p.DatabaseName = c.DatabaseName
-    WHERE p.SPID = @@SPID
-      AND c.Constitution IS NOT NULL
-      AND LEN(c.Constitution) > 0;
+    SET ai_prompt = N'Here are the performance metrics we are seeing in production, as measured by the plan cache:
 
-
-    /* Update ai_prompt column with query metrics for rows that have query plans */
-    UPDATE p
-    SET ai_prompt = COALESCE(ai_prompt, N'') + N'Here are the performance metrics we are seeing in production, as measured by the plan cache:
-
-Database: ' + ISNULL(p.DatabaseName, N'Unknown') + N'
+Database: ' + ISNULL(DatabaseName, N'Unknown') + N'
 Query Type: ' + ISNULL(QueryType, N'Unknown') + N'
 Execution Count: ' + ISNULL(CAST(ExecutionCount AS NVARCHAR(30)), N'N/A') + N'
 Executions Per Minute: ' + ISNULL(CAST(ExecutionsPerMinute AS NVARCHAR(30)), N'N/A') + N'
@@ -5410,10 +5252,7 @@ Thank you.'
                 SET @AIPayload = REPLACE(@AIPayloadTemplate, N'@AIModel', @AIModel);
                 SET @AIPayload = REPLACE(@AIPayload, N'@AISystemPrompt',  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(@AISystemPrompt, '\', '\\'), '"', '\"'), CHAR(13), '\r'), CHAR(10), '\n'), CHAR(9), '\t'));
                 SET @AIPayload = REPLACE(@AIPayload, N'@CurrentAIPrompt',  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(@CurrentAIPrompt, '\', '\\'), '"', '\"'), CHAR(13), '\r'), CHAR(10), '\n'), CHAR(9), '\t'));
-
-                /* Trim payload to context size if specified */
-                IF @AIContext IS NOT NULL AND @AIContext > 0 AND LEN(@AIPayload) > @AIContext
-                    SET @AIPayload = LEFT(@AIPayload, @AIContext);
+                --SET @AIPayload = REPLACE(@AIPayload, N'@CurrentAIPrompt', @CurrentAIPrompt);
                 
                 IF @Debug = 2
                 BEGIN
@@ -5916,16 +5755,16 @@ SET @sql += N' OPTION (RECOMPILE) ; ';
 
 IF @Debug = 1
     BEGIN
-        PRINT SUBSTRING(@sql, 1, 4000);
-        PRINT SUBSTRING(@sql, 4001, 4000);
-        PRINT SUBSTRING(@sql, 8001, 4000);
-        PRINT SUBSTRING(@sql, 12001, 4000);
-        PRINT SUBSTRING(@sql, 16001, 4000);
-        PRINT SUBSTRING(@sql, 20001, 4000);
-        PRINT SUBSTRING(@sql, 24001, 4000);
-        PRINT SUBSTRING(@sql, 28001, 4000);
-        PRINT SUBSTRING(@sql, 32001, 4000);
-        PRINT SUBSTRING(@sql, 36001, 4000);
+        PRINT SUBSTRING(@sql, 0, 4000);
+        PRINT SUBSTRING(@sql, 4000, 8000);
+        PRINT SUBSTRING(@sql, 8000, 12000);
+        PRINT SUBSTRING(@sql, 12000, 16000);
+        PRINT SUBSTRING(@sql, 16000, 20000);
+        PRINT SUBSTRING(@sql, 20000, 24000);
+        PRINT SUBSTRING(@sql, 24000, 28000);
+        PRINT SUBSTRING(@sql, 28000, 32000);
+        PRINT SUBSTRING(@sql, 32000, 36000);
+        PRINT SUBSTRING(@sql, 36000, 40000);
     END;
 IF(@OutputType <> 'NONE')
 BEGIN 
@@ -6192,7 +6031,7 @@ BEGIN
                     'Long Running Query',
                     'https://www.brentozar.com/blitzcache/long-running-queries/',
                     'Long running queries have been found. These are queries with an average duration longer than '
-                    + CAST(@long_running_query_warning_seconds / 1000 AS VARCHAR(5))
+                    + CAST(@long_running_query_warning_seconds / 1000 / 1000 AS VARCHAR(5))
                     + ' second(s). These queries should be investigated for additional tuning options.') ;
 
         IF EXISTS (SELECT 1/0
@@ -6449,7 +6288,7 @@ BEGIN
 				   AND SPID = @@SPID)
             INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
             VALUES (@@SPID,
-                    34,
+                    33,
                     100,
                     'Table Variables detected',
                     'Table Variables',
@@ -6719,7 +6558,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_spool_expensive = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      54,
@@ -6732,7 +6571,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_spool_more_rows = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      55,
@@ -6745,7 +6584,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_bad_estimate = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      56,
@@ -6758,7 +6597,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_paul_white_electric = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      57,
@@ -6788,7 +6627,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_row_goal = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      58,
@@ -6801,7 +6640,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_big_spills = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      59,
@@ -6817,7 +6656,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_mstvf = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      60,
@@ -6830,7 +6669,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_mm_join = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      61,
@@ -6843,7 +6682,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_nonsargable = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      62,
@@ -6856,7 +6695,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  CompileTime > 5000
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      63,
@@ -6869,7 +6708,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  CompileCPU > 5000
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      64,
@@ -6881,9 +6720,9 @@ BEGIN
 
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
-                    WHERE  CompileMemory > 1024
+                    WHERE  CompileMemory > 1024 
 					AND    ((CompileMemory) / (1 * CASE WHEN MaxCompileMemory = 0 THEN 1 ELSE MaxCompileMemory END) * 100.) >= 10.
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      65,
@@ -6896,7 +6735,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.select_with_writes = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      66,
@@ -6909,7 +6748,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_table_spool_expensive = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      67,
@@ -6922,7 +6761,7 @@ BEGIN
         IF EXISTS (SELECT 1/0
                     FROM   ##BlitzCacheProcs p
                     WHERE  p.is_table_spool_more_rows = 1
-					AND    p.SPID = @@SPID)
+  					)
              INSERT INTO ##BlitzCacheResults (SPID, CheckID, Priority, FindingsGroup, Finding, URL, Details)
              VALUES (@@SPID,
                      68,
@@ -8326,4 +8165,3 @@ END; /* End of writing results to table */
 END; /*Final End*/
 
 GO
-
